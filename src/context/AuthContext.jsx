@@ -5,6 +5,15 @@ const SESSION_KEY = "scoresphere_session";
 
 const randomPin = () => String(Math.floor(1000 + Math.random() * 9000));
 
+// Produces the same 4-digit PIN for the same player ID on every browser
+function deterministicPin(id) {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = Math.imul(31, hash) + id.charCodeAt(i) | 0;
+  }
+  return String(1000 + Math.abs(hash) % 9000);
+}
+
 function loadCredentials() {
   try {
     const players = JSON.parse(localStorage.getItem("scoresphere_players") || "[]");
@@ -17,7 +26,7 @@ function loadCredentials() {
       if (p.name === "Beck") {
         return { id: p.id, name: p.name, password: "6541", isAdmin: true, isSuperAdmin: true };
       }
-      return { id: p.id, name: p.name, password: randomPin() };
+      return { id: p.id, name: p.name, password: deterministicPin(p.id) };
     });
 
     localStorage.setItem(CREDS_KEY, JSON.stringify(merged));
@@ -64,7 +73,7 @@ export function AuthProvider({ children }) {
   }
 
   function addCredential(id, name) {
-    const next = [...credentials, { id, name, password: randomPin() }];
+    const next = [...credentials, { id, name, password: deterministicPin(id) }];
     saveCreds(next);
     setCredentials(next);
   }

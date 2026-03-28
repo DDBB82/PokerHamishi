@@ -3,7 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { formatDateLong } from "../utils/statsCalculations";
 
 export default function Hosting() {
-  const { hosting } = useStore();
+  const { hosting, rsvps, setRsvp, removeRsvp } = useStore();
   const { currentUser } = useAuth();
 
   const next = hosting.find((h) => h.status === "next");
@@ -11,6 +11,23 @@ export default function Hosting() {
   const past = hosting.filter((h) => h.status === "past").reverse();
 
   const iAmNext = currentUser?.name === next?.playerName;
+
+  // RSVP data for the next game
+  const nextRsvps = next ? rsvps.filter((r) => r.hostingId === next.id) : [];
+  const inList = nextRsvps.filter((r) => r.status === "in");
+  const outList = nextRsvps.filter((r) => r.status === "out");
+  const myRsvp = currentUser
+    ? nextRsvps.find((r) => r.playerId === currentUser.id)
+    : null;
+
+  function handleRsvp(status) {
+    if (!currentUser || !next) return;
+    if (myRsvp?.status === status) {
+      removeRsvp(next.id, currentUser.id);
+    } else {
+      setRsvp(next.id, currentUser.id, currentUser.name, status);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -31,6 +48,95 @@ export default function Hosting() {
           </p>
           <p className="text-4xl font-bold mb-1">{next.playerName}</p>
           <p className={iAmNext ? "text-amber-100" : "text-indigo-200"}>{formatDateLong(next.date)}</p>
+        </div>
+      )}
+
+      {/* RSVP Section — next game only */}
+      {next && (
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-4">
+          <h2 className="font-semibold text-slate-700 text-base">Next Game RSVP</h2>
+
+          {/* Toggle buttons */}
+          {currentUser ? (
+            <div className="flex gap-3">
+              <button
+                onClick={() => handleRsvp("in")}
+                className={`flex-1 py-2.5 rounded-lg font-semibold text-sm transition-colors ${
+                  myRsvp?.status === "in"
+                    ? "bg-indigo-600 text-white shadow-sm"
+                    : "bg-slate-100 text-slate-600 hover:bg-indigo-50 hover:text-indigo-700"
+                }`}
+              >
+                ✅ I'm In
+              </button>
+              <button
+                onClick={() => handleRsvp("out")}
+                className={`flex-1 py-2.5 rounded-lg font-semibold text-sm transition-colors ${
+                  myRsvp?.status === "out"
+                    ? "bg-red-500 text-white shadow-sm"
+                    : "bg-slate-100 text-slate-600 hover:bg-red-50 hover:text-red-600"
+                }`}
+              >
+                ❌ I'm Out
+              </button>
+            </div>
+          ) : (
+            <p className="text-xs text-slate-400">Sign in to RSVP</p>
+          )}
+
+          {/* In / Out columns */}
+          <div className="grid grid-cols-2 gap-4 pt-1">
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+                ✅ In ({inList.length})
+              </p>
+              <ul className="space-y-1">
+                {inList.map((r) => {
+                  const isMe = currentUser?.id === r.playerId;
+                  return (
+                    <li key={r.id} className="flex items-center gap-1.5 text-sm">
+                      <span className={isMe ? "font-semibold text-amber-600" : "text-slate-700"}>
+                        {r.playerName}
+                      </span>
+                      {isMe && (
+                        <span className="text-xs bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded font-medium">
+                          You
+                        </span>
+                      )}
+                    </li>
+                  );
+                })}
+                {inList.length === 0 && (
+                  <li className="text-xs text-slate-400 italic">No one yet</li>
+                )}
+              </ul>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+                ❌ Out ({outList.length})
+              </p>
+              <ul className="space-y-1">
+                {outList.map((r) => {
+                  const isMe = currentUser?.id === r.playerId;
+                  return (
+                    <li key={r.id} className="flex items-center gap-1.5 text-sm">
+                      <span className={isMe ? "font-semibold text-amber-600" : "text-slate-500"}>
+                        {r.playerName}
+                      </span>
+                      {isMe && (
+                        <span className="text-xs bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded font-medium">
+                          You
+                        </span>
+                      )}
+                    </li>
+                  );
+                })}
+                {outList.length === 0 && (
+                  <li className="text-xs text-slate-400 italic">No one yet</li>
+                )}
+              </ul>
+            </div>
+          </div>
         </div>
       )}
 

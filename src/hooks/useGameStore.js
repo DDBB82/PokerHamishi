@@ -5,6 +5,7 @@ const KEYS = {
   players: "scoresphere_players",
   games:   "scoresphere_games",
   hosting: "scoresphere_hosting",
+  rsvps:   "scoresphere_rsvps",
 };
 
 function generateId() {
@@ -18,15 +19,17 @@ function loadFromStorage() {
       localStorage.setItem(KEYS.players, JSON.stringify(INITIAL_PLAYERS));
       localStorage.setItem(KEYS.games,   JSON.stringify(INITIAL_GAMES));
       localStorage.setItem(KEYS.hosting, JSON.stringify(INITIAL_HOSTING));
-      return { players: INITIAL_PLAYERS, games: INITIAL_GAMES, hosting: INITIAL_HOSTING };
+      localStorage.setItem(KEYS.rsvps,   JSON.stringify([]));
+      return { players: INITIAL_PLAYERS, games: INITIAL_GAMES, hosting: INITIAL_HOSTING, rsvps: [] };
     }
     return {
       players: JSON.parse(localStorage.getItem(KEYS.players)) || [],
       games:   JSON.parse(localStorage.getItem(KEYS.games))   || [],
       hosting: JSON.parse(localStorage.getItem(KEYS.hosting)) || [],
+      rsvps:   JSON.parse(localStorage.getItem(KEYS.rsvps))   || [],
     };
   } catch {
-    return { players: INITIAL_PLAYERS, games: INITIAL_GAMES, hosting: INITIAL_HOSTING };
+    return { players: INITIAL_PLAYERS, games: INITIAL_GAMES, hosting: INITIAL_HOSTING, rsvps: [] };
   }
 }
 
@@ -49,6 +52,7 @@ export function useGameStore() {
     localStorage.setItem(KEYS.players, JSON.stringify(next.players));
     localStorage.setItem(KEYS.games,   JSON.stringify(next.games));
     localStorage.setItem(KEYS.hosting, JSON.stringify(next.hosting));
+    localStorage.setItem(KEYS.rsvps,   JSON.stringify(next.rsvps));
     setStore(next);
   }
 
@@ -131,6 +135,34 @@ export function useGameStore() {
     persist({ ...store, hosting: store.hosting.filter((h) => h.id !== id) });
   }
 
+  // ── RSVPs ─────────────────────────────────────────────────────────────────
+  function setRsvp(hostingId, playerId, playerName, status) {
+    const existing = store.rsvps.findIndex(
+      (r) => r.hostingId === hostingId && r.playerId === playerId
+    );
+    let updatedRsvps;
+    if (existing !== -1) {
+      updatedRsvps = store.rsvps.map((r, i) =>
+        i === existing ? { ...r, playerName, status } : r
+      );
+    } else {
+      updatedRsvps = [
+        ...store.rsvps,
+        { id: generateId(), hostingId, playerId, playerName, status },
+      ];
+    }
+    persist({ ...store, rsvps: updatedRsvps });
+  }
+
+  function removeRsvp(hostingId, playerId) {
+    persist({
+      ...store,
+      rsvps: store.rsvps.filter(
+        (r) => !(r.hostingId === hostingId && r.playerId === playerId)
+      ),
+    });
+  }
+
   // ── Computed ──────────────────────────────────────────────────────────────
   const hostingWithStatus = useMemo(
     () => computeHostingStatus(store.hosting),
@@ -141,6 +173,7 @@ export function useGameStore() {
     players: store.players,
     games:   store.games,
     hosting: hostingWithStatus,
+    rsvps:   store.rsvps,
     // mutations
     addPlayer,
     removePlayer,
@@ -154,5 +187,7 @@ export function useGameStore() {
     addHostEntry,
     updateHostEntry,
     deleteHostEntry,
+    setRsvp,
+    removeRsvp,
   };
 }

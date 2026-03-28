@@ -7,17 +7,21 @@ const randomPin = () => String(Math.floor(1000 + Math.random() * 9000));
 
 function loadCredentials() {
   try {
-    const raw = localStorage.getItem(CREDS_KEY);
-    if (raw) return JSON.parse(raw);
-    // First run — seed from existing players
     const players = JSON.parse(localStorage.getItem("scoresphere_players") || "[]");
-    const creds = players.map((p) =>
-      p.name === "Beck"
-        ? { id: p.id, name: p.name, password: "6541", isAdmin: true, isSuperAdmin: true }
-        : { id: p.id, name: p.name, password: randomPin() }
-    );
-    localStorage.setItem(CREDS_KEY, JSON.stringify(creds));
-    return creds;
+    const existing = JSON.parse(localStorage.getItem(CREDS_KEY) || "[]");
+
+    // Always build from players list, preserving any existing passwords/roles
+    const merged = players.map((p) => {
+      const found = existing.find((c) => c.id === p.id);
+      if (found) return found;
+      if (p.name === "Beck") {
+        return { id: p.id, name: p.name, password: "6541", isAdmin: true, isSuperAdmin: true };
+      }
+      return { id: p.id, name: p.name, password: randomPin() };
+    });
+
+    localStorage.setItem(CREDS_KEY, JSON.stringify(merged));
+    return merged;
   } catch {
     return [];
   }

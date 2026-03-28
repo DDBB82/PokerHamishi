@@ -1,5 +1,6 @@
 import { useMemo, useRef } from "react";
 import { useStore } from "../context/GameStoreContext";
+import { useAuth } from "../context/AuthContext";
 import { computePlayerStats, getInitials, playerColor } from "../utils/statsCalculations";
 
 function Avatar({ player, size = "lg", onUpload }) {
@@ -17,16 +18,10 @@ function Avatar({ player, size = "lg", onUpload }) {
   return (
     <div className="relative group">
       {player.photoBase64 ? (
-        <img
-          src={player.photoBase64}
-          alt={player.name}
-          className={`${sz} rounded-full object-cover border-2 border-white shadow`}
-        />
+        <img src={player.photoBase64} alt={player.name} className={`${sz} rounded-full object-cover border-2 border-white shadow`} />
       ) : (
-        <div
-          className={`${sz} rounded-full flex items-center justify-center text-white font-bold border-2 border-white shadow`}
-          style={{ backgroundColor: playerColor(player.name) }}
-        >
+        <div className={`${sz} rounded-full flex items-center justify-center text-white font-bold border-2 border-white shadow`}
+          style={{ backgroundColor: playerColor(player.name) }}>
           {getInitials(player.name)}
         </div>
       )}
@@ -46,6 +41,7 @@ function Avatar({ player, size = "lg", onUpload }) {
 
 export default function Players() {
   const { players, games, updatePlayerPhoto } = useStore();
+  const { currentUser } = useAuth();
   const statsArr = useMemo(() => computePlayerStats(players, games), [players, games]);
 
   return (
@@ -58,8 +54,11 @@ export default function Players() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {statsArr.map((s, idx) => {
           const player = players.find((p) => p.id === s.playerId) || { name: s.name, photoBase64: null, id: s.playerId };
+          const isMe = currentUser?.name === s.name;
           return (
-            <div key={s.playerId} className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col gap-4">
+            <div key={s.playerId} className={`rounded-xl shadow-sm border p-5 flex flex-col gap-4 transition-colors ${
+              isMe ? "bg-amber-50 border-amber-300 ring-2 ring-amber-300" : "bg-white border-slate-200"
+            }`}>
               <div className="flex items-center gap-4">
                 <Avatar
                   player={player}
@@ -69,19 +68,22 @@ export default function Players() {
                     : null}
                 />
                 <div>
-                  <p className="font-bold text-slate-800 text-lg">{s.name}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-bold text-slate-800 text-lg">{s.name}</p>
+                    {isMe && <span className="text-xs bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded font-medium">You</span>}
+                  </div>
                   <p className="text-xs text-slate-400">#{idx + 1} overall</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-2 text-sm">
-                <Stat label="Total Score" value={s.totalScore} colored />
-                <Stat label="Games Played" value={s.gamesPlayed} />
-                <Stat label="Average Score" value={s.avgScore} colored />
-                <Stat label="Best Win" value={s.bestWin} colored />
-                <Stat label="Worst Loss" value={s.worstLoss} colored />
-                <Stat label="Win Streak" value={s.bestWinStreak} suffix=" games" />
-                <Stat label="Loss Streak" value={s.worstLossStreak} suffix=" games" negative />
+                <Stat label="Total Score" value={s.totalScore} colored isMe={isMe} />
+                <Stat label="Games Played" value={s.gamesPlayed} isMe={isMe} />
+                <Stat label="Average Score" value={s.avgScore} colored isMe={isMe} />
+                <Stat label="Best Win" value={s.bestWin} colored isMe={isMe} />
+                <Stat label="Worst Loss" value={s.worstLoss} colored isMe={isMe} />
+                <Stat label="Win Streak" value={s.bestWinStreak} suffix=" games" isMe={isMe} />
+                <Stat label="Loss Streak" value={s.worstLossStreak} suffix=" games" negative isMe={isMe} />
               </div>
             </div>
           );
@@ -91,26 +93,19 @@ export default function Players() {
   );
 }
 
-function Stat({ label, value, colored, suffix, negative }) {
+function Stat({ label, value, colored, suffix, negative, isMe }) {
   const formatted =
-    value === null || value === undefined
-      ? "—"
-      : colored
-      ? value > 0
-        ? `+${value}`
-        : String(value)
-      : `${value}${suffix || ""}`;
+    value === null || value === undefined ? "—"
+    : colored ? value > 0 ? `+${value}` : String(value)
+    : `${value}${suffix || ""}`;
 
   const cls = colored
-    ? value >= 0
-      ? "text-green-600"
-      : "text-red-500"
-    : negative
-    ? "text-red-400"
+    ? value >= 0 ? "text-green-600" : "text-red-500"
+    : negative ? "text-red-400"
     : "text-slate-700";
 
   return (
-    <div className="bg-slate-50 rounded-lg p-2">
+    <div className={`rounded-lg p-2 ${isMe ? "bg-amber-100/60" : "bg-slate-50"}`}>
       <p className="text-xs text-slate-400 mb-0.5">{label}</p>
       <p className={`font-semibold ${cls}`}>{formatted}</p>
     </div>

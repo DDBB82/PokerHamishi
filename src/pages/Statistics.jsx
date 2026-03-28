@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useStore } from "../context/GameStoreContext";
+import { useAuth } from "../context/AuthContext";
 import {
   computePlayerStats,
   computeCumulativeScores,
@@ -9,6 +10,7 @@ import CumulativeLineChart from "../components/charts/CumulativeLineChart";
 
 export default function Statistics() {
   const { players, games } = useStore();
+  const { currentUser } = useAuth();
   const [selectedPlayer, setSelectedPlayer] = useState("");
 
   const stats = useMemo(() => computePlayerStats(players, games), [players, games]);
@@ -70,15 +72,21 @@ export default function Statistics() {
             </tr>
           </thead>
           <tbody>
-            {byGames.map((s, i) => (
-              <tr key={s.playerId} className="border-b border-slate-100 odd:bg-white even:bg-slate-50/40">
-                <td className="px-4 py-2.5 text-slate-500">
-                  {i === 0 ? "🥇 1" : i === 1 ? "🥈 2" : i === 2 ? "🥉 3" : i + 1}
-                </td>
-                <td className="px-4 py-2.5 font-medium text-slate-700">{s.name}</td>
-                <td className="px-4 py-2.5 text-right text-slate-600">{s.gamesPlayed}</td>
-              </tr>
-            ))}
+            {byGames.map((s, i) => {
+              const isMe = currentUser?.name === s.name;
+              return (
+                <tr key={s.playerId} className={`border-b border-slate-100 ${isMe ? "bg-amber-50" : "odd:bg-white even:bg-slate-50/40"}`}>
+                  <td className="px-4 py-2.5 text-slate-500">
+                    {i === 0 ? "🥇 1" : i === 1 ? "🥈 2" : i === 2 ? "🥉 3" : i + 1}
+                  </td>
+                  <td className="px-4 py-2.5 font-medium text-slate-700">
+                    {s.name}
+                    {isMe && <span className="ml-2 text-xs bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded font-medium">You</span>}
+                  </td>
+                  <td className="px-4 py-2.5 text-right text-slate-600">{s.gamesPlayed}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -114,9 +122,14 @@ export default function Statistics() {
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
         <h2 className="font-semibold text-slate-700 mb-4">Individual Player Records</h2>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {stats.map((s) => (
-            <div key={s.playerId} className="border border-slate-200 rounded-lg p-4">
-              <h3 className="font-semibold text-slate-700 mb-3">{s.name}</h3>
+          {stats.map((s) => {
+            const isMe = currentUser?.name === s.name;
+            return (
+            <div key={s.playerId} className={`border rounded-lg p-4 ${isMe ? "border-amber-300 bg-amber-50 ring-2 ring-amber-300" : "border-slate-200"}`}>
+              <h3 className="font-semibold text-slate-700 mb-3 flex items-center gap-2">
+                {s.name}
+                {isMe && <span className="text-xs bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded font-medium">You</span>}
+              </h3>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-slate-500">Best Game</span>
@@ -142,7 +155,8 @@ export default function Statistics() {
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

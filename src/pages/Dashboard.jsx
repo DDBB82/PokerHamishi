@@ -126,7 +126,7 @@ export default function Dashboard() {
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 text-center">
             <p className="text-sm font-semibold text-slate-600 mb-3">Next Thursday Poker</p>
             <div className="flex items-center justify-center gap-3">
-              {[{ v: timeLeft.days, l: "d" }, { v: timeLeft.hours, l: "h" }, { v: timeLeft.mins, l: "m" }, { v: timeLeft.secs, l: "s" }].map(({ v, l }) => (
+              {[{ v: timeLeft.days, l: "d" }, { v: timeLeft.hours, l: "h" }, { v: timeLeft.mins, l: "m" }].map(({ v, l }) => (
                 <div key={l} className="flex flex-col items-center">
                   <span className="text-4xl font-bold text-indigo-600 tabular-nums">{pad(v)}</span>
                   <span className="text-sm text-slate-400">{l}</span>

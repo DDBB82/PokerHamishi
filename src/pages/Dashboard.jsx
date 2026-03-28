@@ -1,0 +1,206 @@
+import { useState, useMemo } from "react";
+import { useStore } from "../context/GameStoreContext";
+import {
+  computePlayerStats,
+  computeCumulativeScores,
+  formatDateShort,
+  getInitials,
+  playerColor,
+} from "../utils/statsCalculations";
+import PlayerBarChart from "../components/charts/PlayerBarChart";
+import CumulativeLineChart from "../components/charts/CumulativeLineChart";
+
+function Avatar({ player, size = "sm" }) {
+  const sz = size === "sm" ? "w-8 h-8 text-xs" : "w-12 h-12 text-sm";
+  if (player.photoBase64) {
+    return (
+      <img
+        src={player.photoBase64}
+        alt={player.name}
+        className={`${sz} rounded-full object-cover`}
+      />
+    );
+  }
+  return (
+    <div
+      className={`${sz} rounded-full flex items-center justify-center text-white font-bold`}
+      style={{ backgroundColor: playerColor(player.name) }}
+    >
+      {getInitials(player.name)}
+    </div>
+  );
+}
+
+function ScoreCell({ value }) {
+  if (value === null || value === undefined) return <span className="text-slate-400">—</span>;
+  const cls = value >= 0 ? "text-green-600" : "text-red-500";
+  return <span className={cls}>{value > 0 ? `+${value}` : value}</span>;
+}
+
+export default function Dashboard() {
+  const { players, games } = useStore();
+  const [selectedId, setSelectedId] = useState(null);
+
+  const stats = useMemo(() => computePlayerStats(players, games), [players, games]);
+  const cumulative = useMemo(() => computeCumulativeScores(players, games), [players, games]);
+
+  const selectedStats = selectedId ? stats.find((s) => s.playerId === selectedId) : null;
+
+  // Last 5 games for selected player
+  const recentGames = useMemo(() => {
+    if (!selectedId) return [];
+    const sorted = [...games].sort((a, b) => new Date(b.date) - new Date(a.date));
+    const found = [];
+    for (const g of sorted) {
+      const sc = g.scores.find((s) => s.playerId === selectedId);
+      if (sc) found.push({ date: g.date, score: sc.score });
+      if (found.length === 5) break;
+    }
+    return found;
+  }, [selectedId, games]);
+
+  const barData = stats.map((s) => ({ playerId: s.playerId, name: s.name, totalScore: s.totalScore }));
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-slate-800">Dashboard</h1>
+        <p className="text-slate-500 text-sm">Track player performance and game statistics</p>
+      </div>
+
+      {/* Rankings Table */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-100">
+          <h2 className="font-semibold text-slate-700">Player Rankings</h2>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
+                <th className="px-4 py-3 text-left">Rank</th>
+                <th className="px-4 py-3 text-left">Player</th>
+                <th className="px-4 py-3 text-right">Games</th>
+                <th className="px-4 py-3 text-right">Total</th>
+                <th className="px-4 py-3 text-right">Avg</th>
+                <th className="px-4 py-3 text-right">Best Win</th>
+                <th className="px-4 py-3 text-right">Worst Loss</th>
+                <th className="px-4 py-3 text-right">Diff ▲</th>
+              </tr>
+            </thead>
+            <tbody>
+              {stats.map((s, idx) => {
+                const above = idx > 0 ? stats[idx - 1] : null;
+                const diff = above ? s.totalScore - above.totalScore : null;
+                const isSelected = selectedId === s.playerId;
+                const player = players.find((p) => p.id === s.playerId) || { name: s.name, photoBase64: null };
+                return (
+                  <tr
+                    key={s.playerId}
+                    onClick={() => setSelectedId(isSelected ? null : s.playerId)}
+                    className={`border-b border-slate-100 cursor-pointer transition-colors ${
+                      isSelected
+                        ? "bg-indigo-50"
+                        : "hover:bg-slate-50 odd:bg-white even:bg-slate-50/40"
+                    }`}
+                  >
+                    <td className="px-4 py-3 text-slate-500 font-medium">
+                      {idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : `#${idx + 1}`}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <Avatar player={player} size="sm" />
+                        <span className="font-medium text-slate-800">{s.name}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-right text-slate-600">{s.gamesPlayed}</td>
+                    <td className="px-4 py-3 text-right font-semibold">
+                      <ScoreCell value={s.totalScore} />
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <ScoreCell value={s.avgScore} />
+                    </td>
+                    <td className="px-4 py-3 text-right text-green-600">
+                      {s.bestWin !== null ? `+${s.bestWin}` : "—"}
+                    </td>
+                    <td className="px-4 py-3 text-right text-red-500">
+                      {s.worstLoss !== null ? s.worstLoss : "—"}
+                    </td>
+                    <td className="px-4 py-3 text-right text-red-400 text-xs">
+                      {diff !== null ? diff : "—"}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Selected Player Detail Panel */}
+      {selectedStats && (
+        <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-5 space-y-4">
+          <div className="flex items-center gap-3">
+            <Avatar
+              player={players.find((p) => p.id === selectedId) || { name: selectedStats.name, photoBase64: null }}
+              size="lg"
+            />
+            <div>
+              <h2 className="text-lg font-bold text-indigo-800">{selectedStats.name}</h2>
+              <p className="text-sm text-indigo-500">
+                {selectedStats.gamesPlayed} games · Avg {selectedStats.avgScore > 0 ? "+" : ""}{selectedStats.avgScore}
+              </p>
+            </div>
+            <button
+              className="ml-auto text-indigo-400 hover:text-indigo-700"
+              onClick={() => setSelectedId(null)}
+            >
+              ✕
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+            {[
+              { label: "Total Score", value: selectedStats.totalScore, colored: true },
+              { label: "Best Win", value: selectedStats.bestWin, colored: true },
+              { label: "Worst Loss", value: selectedStats.worstLoss, colored: true },
+              { label: "Win Streak", value: selectedStats.bestWinStreak, suffix: " games" },
+            ].map(({ label, value, colored, suffix }) => (
+              <div key={label} className="bg-white rounded-lg p-3 shadow-sm">
+                <p className="text-xs text-slate-500 mb-1">{label}</p>
+                <p className={`font-bold text-lg ${colored ? (value >= 0 ? "text-green-600" : "text-red-500") : "text-slate-700"}`}>
+                  {colored && value > 0 ? `+${value}` : value}{suffix || ""}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          {recentGames.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-indigo-700 mb-2 uppercase tracking-wide">Last {recentGames.length} Games</p>
+              <div className="flex gap-2 flex-wrap">
+                {recentGames.map((g, i) => (
+                  <div key={i} className="bg-white rounded-lg px-3 py-2 shadow-sm text-sm">
+                    <span className="text-slate-400 text-xs block">{formatDateShort(g.date)}</span>
+                    <span className={`font-semibold ${g.score >= 0 ? "text-green-600" : "text-red-500"}`}>
+                      {g.score > 0 ? `+${g.score}` : g.score}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="h-48">
+            <CumulativeLineChart data={cumulative} players={players} selectedPlayer={selectedStats.name} />
+          </div>
+        </div>
+      )}
+
+      {/* Bar Chart */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+        <h2 className="font-semibold text-slate-700 mb-4">Player Performance Chart</h2>
+        <PlayerBarChart data={barData} highlightId={selectedId} />
+      </div>
+    </div>
+  );
+}

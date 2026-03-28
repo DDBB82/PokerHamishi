@@ -12,8 +12,8 @@ import Admin from "./pages/Admin";
 
 export default function App() {
   return (
-    <AuthProvider>
-      <GameStoreProvider>
+    <GameStoreProvider>
+      <AuthProvider>
         <BrowserRouter>
           <div className="min-h-screen bg-slate-100 flex flex-col">
             <Navbar />
@@ -32,7 +32,7 @@ export default function App() {
             </main>
           </div>
         </BrowserRouter>
-      </GameStoreProvider>
-    </AuthProvider>
+      </AuthProvider>
+    </GameStoreProvider>
   );
 }

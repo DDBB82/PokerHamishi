@@ -124,12 +124,12 @@ export default function Dashboard() {
         {/* Countdown */}
         {timeLeft && (
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 text-center">
-            <p className="text-xs text-slate-400 uppercase tracking-wide font-medium mb-2">Next Thursday 21:00</p>
-            <div className="flex items-center justify-center gap-2">
+            <p className="text-sm font-semibold text-slate-600 mb-3">Next Thursday Poker</p>
+            <div className="flex items-center justify-center gap-3">
               {[{ v: timeLeft.days, l: "d" }, { v: timeLeft.hours, l: "h" }, { v: timeLeft.mins, l: "m" }, { v: timeLeft.secs, l: "s" }].map(({ v, l }) => (
                 <div key={l} className="flex flex-col items-center">
-                  <span className="text-2xl font-bold text-indigo-600 tabular-nums">{pad(v)}</span>
-                  <span className="text-xs text-slate-400">{l}</span>
+                  <span className="text-4xl font-bold text-indigo-600 tabular-nums">{pad(v)}</span>
+                  <span className="text-sm text-slate-400">{l}</span>
                 </div>
               ))}
             </div>
@@ -139,9 +139,9 @@ export default function Dashboard() {
         {/* Days until you host */}
         {currentUser && daysUntilHost !== null && (
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 text-center">
-            <p className="text-xs text-slate-400 uppercase tracking-wide font-medium mb-2">You host in</p>
-            <p className="text-2xl font-bold text-amber-500">{daysUntilHost}</p>
-            <p className="text-xs text-slate-400">days</p>
+            <p className="text-sm font-semibold text-slate-600 mb-1">You host in</p>
+            <p className="text-4xl font-bold text-amber-500">{daysUntilHost}</p>
+            <p className="text-sm text-slate-400">days</p>
           </div>
         )}
       </div>
@@ -281,7 +281,7 @@ export default function Dashboard() {
             </div>
           )}
           <div className="h-48">
-            <CumulativeLineChart data={cumulative} players={players} selectedPlayer={selectedStats.name} />
+            <CumulativeLineChart data={cumulative} players={players} selectedPlayer={selectedStats.name} loggedInPlayer={currentUser?.name || null} />
           </div>
         </div>
       )}

@@ -54,7 +54,8 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [credentials, setCredentials] = useState(loadCredentials);
   const [currentUser, setCurrentUser] = useState(loadSession);
-  const [loginModalOpen, setLoginModalOpen] = useState(false);
+  // Auto-open on first visit if not already logged in
+  const [loginModalOpen, setLoginModalOpen] = useState(() => loadSession() === null);
 
   function login(name, password) {
     const cred = credentials.find(

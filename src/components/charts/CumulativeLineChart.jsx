@@ -3,7 +3,7 @@ import {
 } from "recharts";
 import { playerColor } from "../../utils/statsCalculations";
 
-export default function CumulativeLineChart({ data, players, selectedPlayer }) {
+export default function CumulativeLineChart({ data, players, selectedPlayer, loggedInPlayer }) {
   // data: [{ dateLabel, PlayerName: cumulativeScore, ... }]
   const visiblePlayers = selectedPlayer
     ? players.filter((p) => p.name === selectedPlayer)
@@ -20,18 +20,21 @@ export default function CumulativeLineChart({ data, players, selectedPlayer }) {
         />
         <Legend wrapperStyle={{ fontSize: 12 }} />
         <ReferenceLine y={0} stroke="#94a3b8" strokeWidth={1} />
-        {visiblePlayers.map((p) => (
-          <Line
-            key={p.name}
-            type="monotone"
-            dataKey={p.name}
-            stroke={playerColor(p.name)}
-            strokeWidth={selectedPlayer ? 2.5 : 1.5}
-            dot={false}
-            activeDot={{ r: 4 }}
-            connectNulls
-          />
-        ))}
+        {visiblePlayers.map((p) => {
+          const isLoggedIn = loggedInPlayer && p.name === loggedInPlayer;
+          return (
+            <Line
+              key={p.name}
+              type="monotone"
+              dataKey={p.name}
+              stroke={isLoggedIn ? "#000000" : playerColor(p.name)}
+              strokeWidth={isLoggedIn ? 3.5 : selectedPlayer ? 2.5 : 1.5}
+              dot={false}
+              activeDot={{ r: 4 }}
+              connectNulls
+            />
+          );
+        })}
       </LineChart>
     </ResponsiveContainer>
   );

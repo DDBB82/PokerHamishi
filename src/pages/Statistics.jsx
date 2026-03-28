@@ -55,6 +55,7 @@ export default function Statistics() {
           data={cumulative}
           players={players}
           selectedPlayer={selectedPlayer || null}
+          loggedInPlayer={currentUser?.name || null}
         />
       </div>
 

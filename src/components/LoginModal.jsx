@@ -29,7 +29,8 @@ export default function LoginModal() {
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
       <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-8 w-full max-w-sm mx-4">
-        <h2 className="text-xl font-bold text-slate-800 mb-6 text-center">Sign In</h2>
+        <h2 className="text-xl font-bold text-slate-800 mb-1 text-center">🃏 פוקר חמישי</h2>
+        <p className="text-sm text-slate-400 text-center mb-6">Sign in to track your stats</p>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-slate-600 mb-1">Player</label>
@@ -67,9 +68,9 @@ export default function LoginModal() {
             <button
               type="button"
               onClick={handleClose}
-              className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg px-4 py-2 text-sm font-medium transition-colors"
+              className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg px-4 py-2 text-sm font-medium transition-colors"
             >
-              Cancel
+              Continue as Guest
             </button>
           </div>
         </form>

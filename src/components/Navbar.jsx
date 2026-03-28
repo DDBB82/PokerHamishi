@@ -26,7 +26,7 @@ export default function Navbar() {
     <nav className="bg-white shadow-sm border-b border-slate-200">
       <div className="max-w-7xl mx-auto px-4 flex items-center justify-between h-14">
         <span className="text-indigo-700 font-bold text-lg tracking-tight">
-          🎲 Game Tracker
+          🃏 פוקר חמישי
         </span>
 
         {/* Desktop links */}

@@ -1,67 +1,15 @@
 import { useState, useRef } from "react";
 import { useStore } from "../context/GameStoreContext";
+import { useAuth } from "../context/AuthContext";
 import { formatDateLong, getInitials, playerColor } from "../utils/statsCalculations";
-
-const ADMIN_USER = "admin";
-const ADMIN_PASS = "scoresphere2026";
-
-// ── Login Gate ────────────────────────────────────────────────────────────────
-function LoginForm({ onLogin }) {
-  const [u, setU] = useState("");
-  const [p, setP] = useState("");
-  const [err, setErr] = useState("");
-
-  function submit(e) {
-    e.preventDefault();
-    if (u === ADMIN_USER && p === ADMIN_PASS) {
-      sessionStorage.setItem("ss_admin", "1");
-      onLogin();
-    } else {
-      setErr("Invalid username or password.");
-    }
-  }
-
-  return (
-    <div className="flex justify-center items-center min-h-[50vh]">
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 w-full max-w-sm">
-        <h1 className="text-xl font-bold text-slate-800 mb-6 text-center">Admin Login</h1>
-        <form onSubmit={submit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-600 mb-1">Username</label>
-            <input
-              value={u} onChange={(e) => setU(e.target.value)}
-              placeholder="Enter username"
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-600 mb-1">Password</label>
-            <input
-              type="password" value={p} onChange={(e) => setP(e.target.value)}
-              placeholder="Enter password"
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
-            />
-          </div>
-          {err && <p className="text-red-500 text-sm">{err}</p>}
-          <button
-            type="submit"
-            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-4 py-2 text-sm font-medium transition-colors"
-          >
-            Login
-          </button>
-        </form>
-      </div>
-    </div>
-  );
-}
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
 function Btn({ onClick, children, variant = "primary", type = "button", className = "" }) {
   const base = "px-3 py-1.5 rounded-lg text-sm font-medium transition-colors";
   const styles = {
-    primary: "bg-indigo-600 hover:bg-indigo-700 text-white",
+    primary:   "bg-indigo-600 hover:bg-indigo-700 text-white",
     secondary: "bg-slate-100 hover:bg-slate-200 text-slate-700",
-    danger: "bg-red-100 hover:bg-red-200 text-red-700",
+    danger:    "bg-red-100 hover:bg-red-200 text-red-700",
   };
   return (
     <button type={type} onClick={onClick} className={`${base} ${styles[variant]} ${className}`}>
@@ -70,9 +18,30 @@ function Btn({ onClick, children, variant = "primary", type = "button", classNam
   );
 }
 
+// ── Admin login gate ──────────────────────────────────────────────────────────
+function AdminLoginGate() {
+  const { openLogin } = useAuth();
+  return (
+    <div className="flex justify-center items-center min-h-[50vh]">
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 w-full max-w-sm text-center">
+        <h1 className="text-xl font-bold text-slate-800 mb-2">Admin Access</h1>
+        <p className="text-slate-500 text-sm mb-6">
+          Sign in with your admin account to manage game data.
+        </p>
+        <button
+          onClick={openLogin}
+          className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-4 py-2 text-sm font-medium transition-colors"
+        >
+          Sign In
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── Tab: Manage Games ─────────────────────────────────────────────────────────
 function ManageGames({ players, games, addGame, updateGame, deleteGame }) {
-  const [mode, setMode] = useState("add"); // "add" | "edit"
+  const [mode, setMode] = useState("add");
   const [editId, setEditId] = useState("");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [host, setHost] = useState("");
@@ -199,7 +168,9 @@ function ManageGames({ players, games, addGame, updateGame, deleteGame }) {
       <div className="flex gap-2">
         <Btn onClick={save}>{mode === "add" ? "Save Game" : "Update Game"}</Btn>
         {mode === "edit" && editId && (
-          <Btn variant="danger" onClick={() => { if (confirm("Delete this game?")) { deleteGame(editId); setEditId(""); setScores([]); setMsg("Game deleted."); } }}>
+          <Btn variant="danger" onClick={() => {
+            if (confirm("Delete this game?")) { deleteGame(editId); setEditId(""); setScores([]); setMsg("Game deleted."); }
+          }}>
             Delete
           </Btn>
         )}
@@ -209,7 +180,7 @@ function ManageGames({ players, games, addGame, updateGame, deleteGame }) {
 }
 
 // ── Tab: Players ──────────────────────────────────────────────────────────────
-function ManagePlayers({ players, addPlayer, removePlayer, updatePlayerPhoto, updatePlayerName }) {
+function ManagePlayers({ players, addPlayer, removePlayer, updatePlayerPhoto, updatePlayerName, addCredential, removeCredential }) {
   const [name, setName] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState("");
@@ -224,14 +195,27 @@ function ManagePlayers({ players, addPlayer, removePlayer, updatePlayerPhoto, up
     reader.readAsDataURL(file);
   }
 
+  function handleAdd() {
+    if (!name.trim()) return;
+    const player = addPlayer(name);
+    addCredential(player.id, player.name);
+    setName("");
+  }
+
+  function handleRemove(p) {
+    if (!confirm(`Remove ${p.name}?`)) return;
+    removePlayer(p.id);
+    removeCredential(p.id);
+  }
+
   return (
     <div className="space-y-5">
       <div className="flex gap-2">
         <input value={name} onChange={(e) => setName(e.target.value)}
           placeholder="New player name"
           className="border border-slate-200 rounded-lg px-3 py-2 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-          onKeyDown={(e) => e.key === "Enter" && name.trim() && (addPlayer(name), setName(""))} />
-        <Btn onClick={() => { if (name.trim()) { addPlayer(name); setName(""); } }}>Add Player</Btn>
+          onKeyDown={(e) => e.key === "Enter" && handleAdd()} />
+        <Btn onClick={handleAdd}>Add Player</Btn>
       </div>
 
       <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
@@ -239,7 +223,6 @@ function ManagePlayers({ players, addPlayer, removePlayer, updatePlayerPhoto, up
       <div className="space-y-2">
         {players.map((p) => (
           <div key={p.id} className="flex items-center gap-3 bg-white border border-slate-200 rounded-lg px-4 py-3">
-            {/* Avatar */}
             {p.photoBase64 ? (
               <img src={p.photoBase64} alt={p.name} className="w-9 h-9 rounded-full object-cover" />
             ) : (
@@ -261,7 +244,7 @@ function ManagePlayers({ players, addPlayer, removePlayer, updatePlayerPhoto, up
                 <span className="flex-1 font-medium text-slate-700">{p.name}</span>
                 <Btn variant="secondary" onClick={() => { setEditingId(p.id); setEditName(p.name); }}>Rename</Btn>
                 <Btn variant="secondary" onClick={() => { setPhotoTarget(p.id); fileRef.current.click(); }}>Photo</Btn>
-                <Btn variant="danger" onClick={() => { if (confirm(`Remove ${p.name}?`)) removePlayer(p.id); }}>Remove</Btn>
+                <Btn variant="danger" onClick={() => handleRemove(p)}>Remove</Btn>
               </>
             )}
           </div>
@@ -291,7 +274,9 @@ function ManageHosting({ players, hosting, addHostEntry, updateHostEntry, delete
           <option value="">Select player…</option>
           {players.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}
         </select>
-        <Btn onClick={() => { if (date && pname) { addHostEntry({ date: `${date}T12:00:00.000Z`, playerName: pname }); setDate(""); setPname(""); } }}>
+        <Btn onClick={() => {
+          if (date && pname) { addHostEntry({ date: `${date}T12:00:00.000Z`, playerName: pname }); setDate(""); setPname(""); }
+        }}>
           Add
         </Btn>
       </div>
@@ -315,11 +300,11 @@ function ManageHosting({ players, hosting, addHostEntry, updateHostEntry, delete
                 <span className="text-slate-500 w-32">{formatDateLong(h.date)}</span>
                 <span className="flex-1 font-medium text-slate-700">{h.playerName}</span>
                 <span className={`text-xs px-2 py-0.5 rounded-full ${
-                  h.status === "next" ? "bg-indigo-100 text-indigo-700" :
+                  h.status === "next"     ? "bg-indigo-100 text-indigo-700" :
                   h.status === "upcoming" ? "bg-slate-100 text-slate-600" :
-                  "bg-gray-100 text-gray-400"
+                                            "bg-gray-100 text-gray-400"
                 }`}>{h.status}</span>
-                <Btn variant="secondary" onClick={() => { setEditId(h.id); setEditDate(new Date(h.date).toISOString().slice(0,10)); setEditPname(h.playerName); }}>Edit</Btn>
+                <Btn variant="secondary" onClick={() => { setEditId(h.id); setEditDate(new Date(h.date).toISOString().slice(0, 10)); setEditPname(h.playerName); }}>Edit</Btn>
                 <Btn variant="danger" onClick={() => { if (confirm("Delete this entry?")) deleteHostEntry(h.id); }}>Del</Btn>
               </>
             )}
@@ -333,12 +318,53 @@ function ManageHosting({ players, hosting, addHostEntry, updateHostEntry, delete
   );
 }
 
+// ── Tab: Passwords ────────────────────────────────────────────────────────────
+function ManagePasswords({ credentials, resetPin, toggleAdmin }) {
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-slate-500">
+        Share each player's PIN privately. You can reset any PIN or grant admin access.
+      </p>
+      <div className="divide-y divide-slate-100 border border-slate-200 rounded-lg overflow-hidden">
+        {credentials.map((c) => (
+          <div key={c.id} className="flex items-center gap-3 px-4 py-3 bg-white text-sm flex-wrap">
+            <span className="flex-1 font-medium text-slate-700 flex items-center gap-2">
+              {c.name}
+              {c.isSuperAdmin && (
+                <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-medium">Super Admin</span>
+              )}
+              {c.isAdmin && !c.isSuperAdmin && (
+                <span className="text-xs bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-medium">Admin</span>
+              )}
+            </span>
+            <span className="font-mono text-slate-700 bg-slate-100 px-2.5 py-1 rounded tracking-widest">
+              {c.password}
+            </span>
+            <Btn variant="secondary" onClick={() => resetPin(c.id)}>Reset PIN</Btn>
+            {!c.isSuperAdmin && (
+              <Btn
+                variant={c.isAdmin ? "danger" : "secondary"}
+                onClick={() => toggleAdmin(c.id)}
+              >
+                {c.isAdmin ? "Remove Admin" : "Make Admin"}
+              </Btn>
+            )}
+          </div>
+        ))}
+        {credentials.length === 0 && (
+          <div className="px-4 py-8 text-center text-slate-400 text-sm">No players found</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Main Admin page ───────────────────────────────────────────────────────────
-const TABS = ["Manage Games", "Players", "Hosting"];
+const TABS = ["Manage Games", "Players", "Hosting", "Passwords"];
 
 export default function Admin() {
-  const [loggedIn, setLoggedIn] = useState(() => sessionStorage.getItem("ss_admin") === "1");
   const [tab, setTab] = useState(0);
+  const { currentUser, logout, credentials, resetPin, toggleAdmin } = useAuth();
 
   const {
     players, games, hosting,
@@ -347,7 +373,9 @@ export default function Admin() {
     addHostEntry, updateHostEntry, deleteHostEntry,
   } = useStore();
 
-  if (!loggedIn) return <LoginForm onLogin={() => setLoggedIn(true)} />;
+  const { addCredential, removeCredential } = useAuth();
+
+  if (!currentUser?.isAdmin) return <AdminLoginGate />;
 
   return (
     <div className="space-y-6">
@@ -356,9 +384,7 @@ export default function Admin() {
           <h1 className="text-2xl font-bold text-slate-800">Admin</h1>
           <p className="text-slate-500 text-sm">Manage game data</p>
         </div>
-        <Btn variant="secondary" onClick={() => { sessionStorage.removeItem("ss_admin"); setLoggedIn(false); }}>
-          Log out
-        </Btn>
+        <Btn variant="secondary" onClick={logout}>Log out</Btn>
       </div>
 
       {/* Tabs */}
@@ -378,8 +404,19 @@ export default function Admin() {
 
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
         {tab === 0 && <ManageGames players={players} games={games} addGame={addGame} updateGame={updateGame} deleteGame={deleteGame} />}
-        {tab === 1 && <ManagePlayers players={players} addPlayer={addPlayer} removePlayer={removePlayer} updatePlayerPhoto={updatePlayerPhoto} updatePlayerName={updatePlayerName} />}
+        {tab === 1 && (
+          <ManagePlayers
+            players={players}
+            addPlayer={addPlayer}
+            removePlayer={removePlayer}
+            updatePlayerPhoto={updatePlayerPhoto}
+            updatePlayerName={updatePlayerName}
+            addCredential={addCredential}
+            removeCredential={removeCredential}
+          />
+        )}
         {tab === 2 && <ManageHosting players={players} hosting={hosting} addHostEntry={addHostEntry} updateHostEntry={updateHostEntry} deleteHostEntry={deleteHostEntry} />}
+        {tab === 3 && <ManagePasswords credentials={credentials} resetPin={resetPin} toggleAdmin={toggleAdmin} />}
       </div>
     </div>
   );

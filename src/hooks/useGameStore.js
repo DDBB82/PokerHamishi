@@ -56,6 +56,7 @@ export function useGameStore() {
   function addPlayer(name, photoBase64 = null) {
     const player = { id: generateId(), name: name.trim(), photoBase64 };
     persist({ ...store, players: [...store.players, player] });
+    return player;
   }
 
   function removePlayer(id) {

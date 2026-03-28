@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useStore } from "../context/GameStoreContext";
+import { useAuth } from "../context/AuthContext";
 import {
   computePlayerStats,
   computeCumulativeScores,
@@ -39,10 +40,27 @@ function ScoreCell({ value }) {
 
 export default function Dashboard() {
   const { players, games } = useStore();
-  const [selectedId, setSelectedId] = useState(null);
+  const { currentUser } = useAuth();
 
   const stats = useMemo(() => computePlayerStats(players, games), [players, games]);
   const cumulative = useMemo(() => computeCumulativeScores(players, games), [players, games]);
+
+  const myPlayer = currentUser ? players.find((p) => p.name === currentUser.name) : null;
+  const myPlayerId = myPlayer?.id ?? null;
+  const myStats = myPlayerId ? stats.find((s) => s.playerId === myPlayerId) : null;
+  const myRank = myStats ? stats.indexOf(myStats) + 1 : null;
+
+  const myLastGame = useMemo(() => {
+    if (!myPlayerId) return null;
+    const sorted = [...games].sort((a, b) => new Date(b.date) - new Date(a.date));
+    for (const g of sorted) {
+      const sc = g.scores.find((s) => s.playerId === myPlayerId);
+      if (sc) return sc.score;
+    }
+    return null;
+  }, [myPlayerId, games]);
+
+  const [selectedId, setSelectedId] = useState(myPlayerId);
 
   const selectedStats = selectedId ? stats.find((s) => s.playerId === selectedId) : null;
 
@@ -68,6 +86,36 @@ export default function Dashboard() {
         <p className="text-slate-500 text-sm">Track player performance and game statistics</p>
       </div>
 
+      {/* Your Stats hero card */}
+      {currentUser && myStats && myPlayer && (
+        <div className="bg-gradient-to-r from-indigo-600 to-indigo-500 rounded-xl p-5 text-white">
+          <div className="flex items-center gap-3 mb-4">
+            <Avatar player={myPlayer} size="lg" />
+            <div>
+              <p className="text-indigo-200 text-xs font-medium uppercase tracking-wide">Your Stats</p>
+              <h2 className="text-xl font-bold leading-tight">{currentUser.name}</h2>
+              <p className="text-indigo-200 text-sm">
+                Rank #{myRank} · {myStats.gamesPlayed} games
+              </p>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { label: "Total", value: myStats.totalScore },
+              { label: "Avg / Game", value: myStats.avgScore },
+              { label: "Last Game", value: myLastGame },
+            ].map(({ label, value }) => (
+              <div key={label} className="bg-white/10 rounded-lg p-3 text-center">
+                <p className="text-indigo-200 text-xs mb-1">{label}</p>
+                <p className="font-bold text-lg">
+                  {value === null ? "—" : value > 0 ? `+${value}` : value}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Rankings Table */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-100">
@@ -92,6 +140,7 @@ export default function Dashboard() {
                 const above = idx > 0 ? stats[idx - 1] : null;
                 const diff = above ? s.totalScore - above.totalScore : null;
                 const isSelected = selectedId === s.playerId;
+                const isMe = myPlayerId === s.playerId;
                 const player = players.find((p) => p.id === s.playerId) || { name: s.name, photoBase64: null };
                 return (
                   <tr
@@ -100,6 +149,8 @@ export default function Dashboard() {
                     className={`border-b border-slate-100 cursor-pointer transition-colors ${
                       isSelected
                         ? "bg-indigo-50"
+                        : isMe
+                        ? "bg-amber-50 hover:bg-amber-100"
                         : "hover:bg-slate-50 odd:bg-white even:bg-slate-50/40"
                     }`}
                   >
@@ -110,6 +161,9 @@ export default function Dashboard() {
                       <div className="flex items-center gap-2">
                         <Avatar player={player} size="sm" />
                         <span className="font-medium text-slate-800">{s.name}</span>
+                        {isMe && (
+                          <span className="text-xs bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded font-medium">You</span>
+                        )}
                       </div>
                     </td>
                     <td className="px-4 py-3 text-right text-slate-600">{s.gamesPlayed}</td>

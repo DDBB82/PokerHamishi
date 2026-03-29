@@ -258,7 +258,7 @@ function ManagePlayers({ players, addPlayer, removePlayer, updatePlayerPhoto, up
 function ManageHosting({
   players, hosting, addHostEntry, updateHostEntry, deleteHostEntry,
   sessions, toggleRsvpOpen, createSession, startSession, endSession,
-  approveRebuy, denyRebuy,
+  approveRebuy, denyRebuy, addGuestToSession, updateGuestNote, removePlayerFromSession,
 }) {
   const [date, setDate] = useState("");
   const [pname, setPname] = useState("");
@@ -383,7 +383,10 @@ function ManageHosting({
                   <tbody>
                     {nextSession.players.map((p) => (
                       <tr key={p.playerId} className="border-t border-slate-100">
-                        <td className="px-4 py-2 font-medium text-slate-700">{p.playerName}</td>
+                        <td className="px-4 py-2 font-medium text-slate-700">
+                          {p.playerName}
+                          {p.isGuest && p.note && <span className="ml-2 text-xs text-slate-400 italic">({p.note})</span>}
+                        </td>
                         <td className="px-4 py-2 text-right font-bold text-green-600">{p.buys} V</td>
                         <td className="px-4 py-2 text-right text-slate-600">{p.buys * 50}</td>
                         <td className="px-4 py-2 text-right text-slate-600">{p.buys * 100}</td>
@@ -398,6 +401,38 @@ function ManageHosting({
                 </table>
               </div>
             </div>
+
+            {/* Guest players */}
+            {nextSession.status === "active" && (
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Guests</p>
+                <div className="space-y-2">
+                  {[1, 2, 3].map((n) => {
+                    const guestId = `guest-${n}`;
+                    const existing = nextSession.players.find((p) => p.playerId === guestId);
+                    return (
+                      <div key={n} className="flex items-center gap-2">
+                        {existing ? (
+                          <>
+                            <span className="text-sm font-medium text-slate-700 w-16">Guest {n}</span>
+                            <input
+                              type="text"
+                              placeholder="Add a note…"
+                              value={existing.note || ""}
+                              onChange={(e) => updateGuestNote(nextSession.id, guestId, e.target.value)}
+                              className="flex-1 border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                            />
+                            <Btn variant="danger" onClick={() => removePlayerFromSession(nextSession.id, guestId)}>Remove</Btn>
+                          </>
+                        ) : (
+                          <Btn variant="secondary" onClick={() => addGuestToSession(nextSession.id, n)}>+ Add Guest {n}</Btn>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Pending rebuy requests */}
             <div>
@@ -512,7 +547,7 @@ export default function Admin() {
     addGame, updateGame, deleteGame,
     addHostEntry, updateHostEntry, deleteHostEntry,
     sessions, toggleRsvpOpen, createSession, startSession, endSession,
-    approveRebuy, denyRebuy,
+    approveRebuy, denyRebuy, addGuestToSession, updateGuestNote, removePlayerFromSession,
     settings, updateSettings,
   } = useStore();
 
@@ -572,6 +607,9 @@ export default function Admin() {
             endSession={endSession}
             approveRebuy={approveRebuy}
             denyRebuy={denyRebuy}
+            addGuestToSession={addGuestToSession}
+            updateGuestNote={updateGuestNote}
+            removePlayerFromSession={removePlayerFromSession}
           />
         )}
         {tab === 3 && <ManagePasswords credentials={credentials} resetPin={resetPin} toggleAdmin={toggleAdmin} settings={settings} updateSettings={updateSettings} />}

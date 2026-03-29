@@ -240,6 +240,39 @@ export function useGameStore() {
     });
   }
 
+  function addGuestToSession(sessionId, guestNumber, note = "") {
+    const playerId = `guest-${guestNumber}`;
+    const playerName = `Guest ${guestNumber}`;
+    persist({
+      ...store,
+      sessions: store.sessions.map((s) => {
+        if (s.id !== sessionId) return s;
+        if (s.players.some((p) => p.playerId === playerId)) return s;
+        return { ...s, players: [...s.players, { playerId, playerName, buys: 1, isGuest: true, note }] };
+      }),
+    });
+  }
+
+  function updateGuestNote(sessionId, guestPlayerId, note) {
+    persist({
+      ...store,
+      sessions: store.sessions.map((s) => {
+        if (s.id !== sessionId) return s;
+        return { ...s, players: s.players.map((p) => p.playerId === guestPlayerId ? { ...p, note } : p) };
+      }),
+    });
+  }
+
+  function removePlayerFromSession(sessionId, playerId) {
+    persist({
+      ...store,
+      sessions: store.sessions.map((s) => {
+        if (s.id !== sessionId) return s;
+        return { ...s, players: s.players.filter((p) => p.playerId !== playerId) };
+      }),
+    });
+  }
+
   function requestRebuy(sessionId, playerId, playerName, quantity = 1) {
     const request = {
       id: generateId(),
@@ -336,6 +369,9 @@ export function useGameStore() {
     createSession,
     startSession,
     checkInToSession,
+    addGuestToSession,
+    updateGuestNote,
+    removePlayerFromSession,
     requestRebuy,
     approveRebuy,
     denyRebuy,

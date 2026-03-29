@@ -127,55 +127,55 @@ export default function Dashboard() {
     <div className="space-y-6">
       {/* ── LIVE GAME BANNER (takes over when a session is active) ── */}
       {activeSession && (
-        <div className="bg-gradient-to-br from-green-600 to-green-700 rounded-xl p-5 text-white shadow-lg space-y-4">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
           {/* Header */}
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div>
-              <p className="text-green-200 text-xs font-semibold uppercase tracking-wide">🃏 Game is Live!</p>
-              <h2 className="text-2xl font-bold">
+              <p className="text-slate-500 text-xs font-semibold uppercase tracking-wide">🃏 Game is Live!</p>
+              <h2 className="text-2xl font-bold text-slate-800">
                 {liveHosting
                   ? new Date(liveHosting.date).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })
                   : "Tonight's Game"}
               </h2>
-              {liveHosting && <p className="text-green-200 text-sm">Hosted by {liveHosting.playerName}</p>}
+              {liveHosting && <p className="text-slate-500 text-sm">Hosted by {liveHosting.playerName}</p>}
             </div>
-            <span className="bg-green-500/40 text-white text-xs font-bold px-3 py-1.5 rounded-full animate-pulse">
+            <span className="bg-green-100 text-green-700 text-xs font-bold px-3 py-1.5 rounded-full animate-pulse">
               LIVE
             </span>
           </div>
 
           {/* My status */}
           {!currentUser ? (
-            <p className="text-green-200 text-sm">Sign in to join the game</p>
+            <p className="text-slate-400 text-sm">Sign in to join the game</p>
           ) : !myLiveEntry ? (
             <button
               onClick={() => checkInToSession(activeSession.id, currentUser.id, currentUser.name)}
-              className="w-full py-3 rounded-xl text-base font-semibold bg-white/20 hover:bg-white/30 text-white transition-colors"
+              className="w-full py-3 rounded-xl text-base font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
             >
               🃏 I'm In! (+1 V · 50 NIS · 100 chips)
             </button>
           ) : (
             <div className="space-y-3">
               {/* V count */}
-              <div className="bg-green-500/30 rounded-xl p-4 text-center">
-                <p className="text-green-200 text-xs font-semibold uppercase tracking-wide mb-1">Your Buy-ins</p>
-                <p className="text-5xl font-bold text-white">{myLiveEntry.buys} <span className="text-3xl font-semibold text-green-200">V</span></p>
-                <p className="text-green-200 text-sm mt-1">{myLiveEntry.buys * 50} NIS · {myLiveEntry.buys * 100} chips</p>
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-center">
+                <p className="text-slate-400 text-xs font-semibold uppercase tracking-wide mb-1">Your Buy-ins</p>
+                <p className="text-5xl font-bold text-slate-800">{myLiveEntry.buys} <span className="text-3xl font-semibold text-green-500">V</span></p>
+                <p className="text-slate-400 text-sm mt-1">{myLiveEntry.buys * 50} NIS · {myLiveEntry.buys * 100} chips</p>
               </div>
               {/* Rebuy request */}
               {myPendingRebuy ? (
-                <p className="text-center text-green-200 text-sm font-medium">⏳ Rebuy request ({myPendingRebuy.quantity} V) pending admin approval</p>
+                <p className="text-center text-slate-500 text-sm font-medium">⏳ Rebuy request ({myPendingRebuy.quantity} V) pending admin approval</p>
               ) : (
                 <div className="space-y-2">
-                  <div className="flex items-center gap-2 bg-green-500/30 rounded-lg px-4 py-2">
-                    <span className="text-green-200 text-sm flex-1">How many V's?</span>
-                    <button onClick={() => setRebuyQty(q => Math.max(1, q - 1))} className="text-white font-bold text-lg px-2">−</button>
-                    <span className="text-white font-bold text-xl w-8 text-center">{rebuyQty}</span>
-                    <button onClick={() => setRebuyQty(q => Math.min(10, q + 1))} className="text-white font-bold text-lg px-2">+</button>
+                  <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-4 py-2">
+                    <span className="text-slate-500 text-sm flex-1">How many V's?</span>
+                    <button onClick={() => setRebuyQty(q => Math.max(1, q - 1))} className="text-slate-600 font-bold text-lg px-2 hover:text-slate-800">−</button>
+                    <span className="text-slate-800 font-bold text-xl w-8 text-center">{rebuyQty}</span>
+                    <button onClick={() => setRebuyQty(q => Math.min(10, q + 1))} className="text-slate-600 font-bold text-lg px-2 hover:text-slate-800">+</button>
                   </div>
                   <button
                     onClick={() => { requestRebuy(activeSession.id, currentUser.id, currentUser.name, rebuyQty); setRebuyQty(1); }}
-                    className="w-full py-4 rounded-xl text-lg font-bold bg-green-500 hover:bg-green-400 text-white transition-colors shadow-sm"
+                    className="w-full py-4 rounded-xl text-lg font-bold bg-green-500 hover:bg-green-600 text-white transition-colors shadow-sm"
                   >
                     Request Rebuy +{rebuyQty} V · {rebuyQty * 50} NIS
                   </button>
@@ -187,14 +187,14 @@ export default function Dashboard() {
           {/* Players in game */}
           {activeSession.players.length > 0 && (
             <div>
-              <p className="text-green-200 text-xs font-semibold uppercase tracking-wide mb-2">Players In ({activeSession.players.length})</p>
+              <p className="text-slate-500 text-xs font-semibold uppercase tracking-wide mb-2">Players In ({activeSession.players.length})</p>
               <div className="flex flex-wrap gap-2">
                 {activeSession.players.map((p) => {
                   const isMe = p.playerId === currentUser?.id;
                   return (
-                    <div key={p.playerId} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm font-medium ${isMe ? "bg-amber-400/30 text-amber-100" : "bg-green-500/30 text-white"}`}>
+                    <div key={p.playerId} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm font-medium ${isMe ? "bg-amber-50 text-amber-700 border border-amber-200" : "bg-slate-100 text-slate-600"}`}>
                       <span>{p.playerName}{isMe ? " (You)" : ""}</span>
-                      <span className="bg-green-400/40 text-green-100 text-xs font-bold px-1.5 py-0.5 rounded">{p.buys}V</span>
+                      <span className="text-green-600 text-xs font-bold">{p.buys}V</span>
                     </div>
                   );
                 })}
@@ -207,21 +207,21 @@ export default function Dashboard() {
             const pending = activeSession.rebuyRequests.filter(r => r.status === "pending");
             if (pending.length === 0) return null;
             return (
-              <div className="border-t border-green-500/40 pt-4 space-y-2">
-                <p className="text-green-200 text-xs font-semibold uppercase tracking-wide">⏳ Pending Rebuys ({pending.length})</p>
+              <div className="border-t border-slate-200 pt-4 space-y-2">
+                <p className="text-slate-500 text-xs font-semibold uppercase tracking-wide">⏳ Pending Rebuys ({pending.length})</p>
                 {pending.map(r => (
-                  <div key={r.id} className="flex items-center gap-3 bg-green-500/20 rounded-lg px-4 py-2.5">
-                    <span className="flex-1 text-white font-medium text-sm">{r.playerName}</span>
-                    <span className="text-green-200 text-sm font-bold">+{r.quantity || 1} V</span>
+                  <div key={r.id} className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5">
+                    <span className="flex-1 text-slate-700 font-medium text-sm">{r.playerName}</span>
+                    <span className="text-green-600 text-sm font-bold">+{r.quantity || 1} V</span>
                     <button
                       onClick={() => approveRebuy(activeSession.id, r.id)}
-                      className="px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-green-700 hover:bg-green-50 transition-colors"
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-700 hover:bg-slate-800 text-white transition-colors"
                     >
                       ✓ Approve
                     </button>
                     <button
                       onClick={() => denyRebuy(activeSession.id, r.id)}
-                      className="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-500/40 hover:bg-red-500/60 text-white transition-colors"
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
                     >
                       ✗ Deny
                     </button>

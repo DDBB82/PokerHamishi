@@ -45,7 +45,7 @@ function getNextThursday21() {
 }
 
 export default function Dashboard() {
-  const { players, games, hosting, rsvps, setRsvp, removeRsvp, settings, sessions, checkInToSession, requestRebuy } = useStore();
+  const { players, games, hosting, rsvps, setRsvp, removeRsvp, settings, sessions, checkInToSession, requestRebuy, approveRebuy, denyRebuy } = useStore();
   const { currentUser } = useAuth();
 
   // Live game session
@@ -150,7 +150,7 @@ export default function Dashboard() {
           ) : !myLiveEntry ? (
             <button
               onClick={() => checkInToSession(activeSession.id, currentUser.id, currentUser.name)}
-              className="w-full py-4 rounded-xl text-lg font-bold bg-white text-green-700 hover:bg-green-50 transition-colors shadow-sm"
+              className="w-full py-3 rounded-xl text-base font-semibold bg-white/20 hover:bg-white/30 text-white transition-colors"
             >
               🃏 I'm In! (+1 V · 50 NIS · 100 chips)
             </button>
@@ -166,20 +166,18 @@ export default function Dashboard() {
               {myPendingRebuy ? (
                 <p className="text-center text-green-200 text-sm font-medium">⏳ Rebuy request ({myPendingRebuy.quantity} V) pending admin approval</p>
               ) : (
-                <div className="flex gap-2">
-                  <div className="flex items-center gap-2 bg-green-500/30 rounded-lg px-3 py-2">
-                    <span className="text-green-200 text-sm">Qty:</span>
-                    <input
-                      type="number" min={1} max={10} value={rebuyQty}
-                      onChange={(e) => setRebuyQty(Math.max(1, Math.min(10, Number(e.target.value))))}
-                      className="w-12 bg-transparent text-white font-bold text-center focus:outline-none"
-                    />
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 bg-green-500/30 rounded-lg px-4 py-2">
+                    <span className="text-green-200 text-sm flex-1">How many V's?</span>
+                    <button onClick={() => setRebuyQty(q => Math.max(1, q - 1))} className="text-white font-bold text-lg px-2">−</button>
+                    <span className="text-white font-bold text-xl w-8 text-center">{rebuyQty}</span>
+                    <button onClick={() => setRebuyQty(q => Math.min(10, q + 1))} className="text-white font-bold text-lg px-2">+</button>
                   </div>
                   <button
                     onClick={() => { requestRebuy(activeSession.id, currentUser.id, currentUser.name, rebuyQty); setRebuyQty(1); }}
-                    className="flex-1 py-2.5 rounded-lg font-semibold text-sm bg-green-500/40 hover:bg-green-500/60 text-white transition-colors"
+                    className="w-full py-4 rounded-xl text-lg font-bold bg-green-500 hover:bg-green-400 text-white transition-colors shadow-sm"
                   >
-                    Request Rebuy (+{rebuyQty} V · {rebuyQty * 50} NIS)
+                    Request Rebuy +{rebuyQty} V · {rebuyQty * 50} NIS
                   </button>
                 </div>
               )}
@@ -203,6 +201,35 @@ export default function Dashboard() {
               </div>
             </div>
           )}
+
+          {/* Admin: pending rebuy approvals */}
+          {currentUser?.isAdmin && (() => {
+            const pending = activeSession.rebuyRequests.filter(r => r.status === "pending");
+            if (pending.length === 0) return null;
+            return (
+              <div className="border-t border-green-500/40 pt-4 space-y-2">
+                <p className="text-green-200 text-xs font-semibold uppercase tracking-wide">⏳ Pending Rebuys ({pending.length})</p>
+                {pending.map(r => (
+                  <div key={r.id} className="flex items-center gap-3 bg-green-500/20 rounded-lg px-4 py-2.5">
+                    <span className="flex-1 text-white font-medium text-sm">{r.playerName}</span>
+                    <span className="text-green-200 text-sm font-bold">+{r.quantity || 1} V</span>
+                    <button
+                      onClick={() => approveRebuy(activeSession.id, r.id)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-green-700 hover:bg-green-50 transition-colors"
+                    >
+                      ✓ Approve
+                    </button>
+                    <button
+                      onClick={() => denyRebuy(activeSession.id, r.id)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-500/40 hover:bg-red-500/60 text-white transition-colors"
+                    >
+                      ✗ Deny
+                    </button>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
         </div>
       )}
 

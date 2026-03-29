@@ -441,7 +441,7 @@ function ManageHosting({
 }
 
 // ── Tab: Passwords ────────────────────────────────────────────────────────────
-function ManagePasswords({ credentials, resetPin, toggleAdmin }) {
+function ManagePasswords({ credentials, resetPin, toggleAdmin, settings, updateSettings }) {
   return (
     <div className="space-y-4">
       <p className="text-sm text-slate-500">
@@ -477,6 +477,23 @@ function ManagePasswords({ credentials, resetPin, toggleAdmin }) {
           <div className="px-4 py-8 text-center text-slate-400 text-sm">No players found</div>
         )}
       </div>
+
+      {/* Game Settings */}
+      <div className="border border-slate-200 rounded-xl p-4 space-y-3 bg-slate-50">
+        <h3 className="font-semibold text-slate-700 text-sm">Game Settings</h3>
+        <div className="flex items-center gap-3 flex-wrap">
+          <label className="text-sm text-slate-600 font-medium">Max players per game</label>
+          <input
+            type="number"
+            min={2}
+            max={20}
+            value={settings?.maxPlayers ?? 9}
+            onChange={(e) => updateSettings({ maxPlayers: Number(e.target.value) })}
+            className="border border-slate-200 rounded-lg px-3 py-2 text-sm w-24 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+          />
+          <span className="text-xs text-slate-400">Current: {settings?.maxPlayers ?? 9}</span>
+        </div>
+      </div>
     </div>
   );
 }
@@ -495,6 +512,7 @@ export default function Admin() {
     addHostEntry, updateHostEntry, deleteHostEntry,
     sessions, toggleRsvpOpen, createSession, startSession, endSession,
     approveRebuy, denyRebuy,
+    settings, updateSettings,
   } = useStore();
 
   const { addCredential, removeCredential } = useAuth();
@@ -555,7 +573,7 @@ export default function Admin() {
             denyRebuy={denyRebuy}
           />
         )}
-        {tab === 3 && <ManagePasswords credentials={credentials} resetPin={resetPin} toggleAdmin={toggleAdmin} />}
+        {tab === 3 && <ManagePasswords credentials={credentials} resetPin={resetPin} toggleAdmin={toggleAdmin} settings={settings} updateSettings={updateSettings} />}
       </div>
     </div>
   );

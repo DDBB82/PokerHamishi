@@ -45,7 +45,7 @@ function getNextThursday21() {
 }
 
 export default function Dashboard() {
-  const { players, games, hosting } = useStore();
+  const { players, games, hosting, rsvps, setRsvp, removeRsvp, settings } = useStore();
   const { currentUser } = useAuth();
 
   const stats = useMemo(() => computePlayerStats(players, games), [players, games]);
@@ -145,6 +145,183 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
+      {/* Next Game Registration card */}
+      {(() => {
+        const nextGame = hosting.find((h) => h.status === "next");
+        if (!nextGame || !nextGame.rsvpOpen) return null;
+        const maxPlayers = settings?.maxPlayers ?? 9;
+        const gameRsvps = rsvps.filter((r) => r.hostingId === nextGame.id);
+        const inList = gameRsvps.filter((r) => r.status === "in");
+        const standbyList = gameRsvps
+          .filter((r) => r.status === "standby")
+          .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+        const spotsLeft = maxPlayers - inList.length;
+        const isFull = inList.length >= maxPlayers;
+        const myRsvp = currentUser
+          ? gameRsvps.find((r) => r.playerId === currentUser.id)
+          : null;
+        const alertLabel = isFull
+          ? "🚨🚨 FULL"
+          : inList.length >= 8
+          ? "🚨🚨"
+          : inList.length >= 7
+          ? "🚨"
+          : "";
+
+        function handleRsvp(status) {
+          if (!currentUser) return;
+          if (myRsvp?.status === status) {
+            removeRsvp(nextGame.id, currentUser.id);
+          } else {
+            setRsvp(nextGame.id, currentUser.id, currentUser.name, status);
+          }
+        }
+
+        const myStandbyPos = myRsvp?.status === "standby"
+          ? standbyList.findIndex((r) => r.playerId === currentUser?.id) + 1
+          : null;
+
+        return (
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-4">
+            {/* Card header */}
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <h2 className="font-semibold text-slate-700 text-base">Next Game Registration</h2>
+              <div className="flex items-center gap-2">
+                {alertLabel && (
+                  <span className="text-sm font-bold text-red-600">{alertLabel}</span>
+                )}
+                <span className="text-xs text-slate-400">
+                  {new Date(nextGame.date).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
+                </span>
+              </div>
+            </div>
+
+            {/* Progress bar */}
+            <div>
+              <div className="w-full bg-slate-200 rounded-full h-2">
+                <div
+                  className={`h-2 rounded-full transition-all ${isFull ? "bg-red-500" : inList.length >= 7 ? "bg-amber-500" : "bg-indigo-500"}`}
+                  style={{ width: `${Math.min((inList.length / maxPlayers) * 100, 100)}%` }}
+                />
+              </div>
+              <div className="flex justify-between text-xs text-slate-500 mt-1">
+                <span>{inList.length}/{maxPlayers} registered</span>
+                <span>{isFull ? "Full!" : `${spotsLeft} spot${spotsLeft !== 1 ? "s" : ""} left`}</span>
+              </div>
+            </div>
+
+            {/* Action buttons */}
+            {!currentUser ? (
+              <p className="text-xs text-slate-400 italic">Sign in to register</p>
+            ) : myRsvp?.status === "in" && isFull ? (
+              <p className="text-sm font-semibold text-green-600">✅ Your spot is confirmed!</p>
+            ) : isFull ? (
+              myRsvp?.status === "standby" ? (
+                <div className="space-y-2">
+                  <p className="text-sm text-amber-600 font-medium">
+                    ⏳ You're on standby{myStandbyPos ? ` (#${myStandbyPos})` : ""} — you'll be notified if a spot opens
+                  </p>
+                  <button
+                    onClick={() => removeRsvp(nextGame.id, currentUser.id)}
+                    className="w-full py-2.5 rounded-lg font-semibold text-sm bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+                  >
+                    Leave Standby
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-base font-bold text-red-500">🚫 Sorry, we are full</p>
+                  <button
+                    onClick={() => handleRsvp("standby")}
+                    className="w-full py-2.5 rounded-lg font-semibold text-sm bg-slate-100 text-slate-600 hover:bg-indigo-50 hover:text-indigo-700 transition-colors"
+                  >
+                    📋 Join Standby
+                  </button>
+                </div>
+              )
+            ) : (
+              <div className="flex gap-3">
+                <button
+                  onClick={() => handleRsvp("in")}
+                  className={`flex-1 py-2.5 rounded-lg font-semibold text-sm transition-colors ${
+                    myRsvp?.status === "in"
+                      ? "bg-indigo-600 text-white shadow-sm"
+                      : "bg-slate-100 text-slate-600 hover:bg-indigo-50 hover:text-indigo-700"
+                  }`}
+                >
+                  ✅ I'm In
+                </button>
+                <button
+                  onClick={() => handleRsvp("out")}
+                  className={`flex-1 py-2.5 rounded-lg font-semibold text-sm transition-colors ${
+                    myRsvp?.status === "out"
+                      ? "bg-red-500 text-white shadow-sm"
+                      : "bg-slate-100 text-slate-600 hover:bg-red-50 hover:text-red-600"
+                  }`}
+                >
+                  ❌ I'm Out
+                </button>
+              </div>
+            )}
+
+            {/* Player lists */}
+            <div className="space-y-2 pt-1">
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
+                  ✅ In ({inList.length})
+                </p>
+                {inList.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {inList.map((r) => {
+                      const isMe = currentUser?.id === r.playerId;
+                      return (
+                        <span
+                          key={r.id}
+                          className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                            isMe
+                              ? "bg-amber-200 text-amber-800"
+                              : "bg-slate-100 text-slate-600"
+                          }`}
+                        >
+                          {r.playerName}{isMe ? " (You)" : ""}
+                        </span>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-400 italic">No one yet</p>
+                )}
+              </div>
+
+              {standbyList.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
+                    ⏳ Standby ({standbyList.length})
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {standbyList.map((r, idx) => {
+                      const isMe = currentUser?.id === r.playerId;
+                      return (
+                        <span
+                          key={r.id}
+                          className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                            isMe
+                              ? "bg-amber-200 text-amber-800"
+                              : "bg-slate-100 text-slate-600"
+                          }`}
+                        >
+                          {r.playerName}{isMe ? ` (You - #${idx + 1} on standby)` : ""}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Your Stats hero card */}
       {currentUser && myStats && myPlayer && (

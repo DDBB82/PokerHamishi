@@ -6,6 +6,7 @@ export default function Hosting() {
   const {
     hosting, rsvps, setRsvp, removeRsvp,
     sessions, checkInToSession, requestRebuy,
+    settings,
   } = useStore();
   const { currentUser } = useAuth();
 
@@ -16,12 +17,28 @@ export default function Hosting() {
   const iAmNext = currentUser?.name === next?.playerName;
 
   // RSVP data for the next game
+  const maxPlayers = settings?.maxPlayers ?? 9;
   const nextRsvps = next ? rsvps.filter((r) => r.hostingId === next.id) : [];
   const inList = nextRsvps.filter((r) => r.status === "in");
   const outList = nextRsvps.filter((r) => r.status === "out");
+  const standbyList = nextRsvps
+    .filter((r) => r.status === "standby")
+    .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+  const isFull = inList.length >= maxPlayers;
+  const spotsLeft = maxPlayers - inList.length;
   const myRsvp = currentUser
     ? nextRsvps.find((r) => r.playerId === currentUser.id)
     : null;
+  const myStandbyPos = myRsvp?.status === "standby"
+    ? standbyList.findIndex((r) => r.playerId === currentUser?.id) + 1
+    : null;
+  const alertLabel = isFull
+    ? "🚨🚨 FULL"
+    : inList.length >= 8
+    ? "🚨🚨"
+    : inList.length >= 7
+    ? "🚨"
+    : "";
 
   function handleRsvp(status) {
     if (!currentUser || !next) return;
@@ -83,11 +100,61 @@ export default function Hosting() {
       {/* RSVP Section — next game only */}
       {next && (
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-4">
-          <h2 className="font-semibold text-slate-700 text-base">Next Game RSVP</h2>
+          {/* Header */}
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <h2 className="font-semibold text-slate-700 text-base">Next Game RSVP</h2>
+            {next.rsvpOpen && alertLabel && (
+              <span className="text-sm font-bold text-red-600">{alertLabel}</span>
+            )}
+          </div>
+
+          {/* Progress bar — only if rsvpOpen */}
+          {next.rsvpOpen && (
+            <div>
+              <div className="w-full bg-slate-200 rounded-full h-2">
+                <div
+                  className={`h-2 rounded-full transition-all ${isFull ? "bg-red-500" : inList.length >= 7 ? "bg-amber-500" : "bg-indigo-500"}`}
+                  style={{ width: `${Math.min((inList.length / maxPlayers) * 100, 100)}%` }}
+                />
+              </div>
+              <div className="flex justify-between text-xs text-slate-500 mt-1">
+                <span>{inList.length}/{maxPlayers} registered</span>
+                <span>{isFull ? "Full!" : `${spotsLeft} spot${spotsLeft !== 1 ? "s" : ""} left`}</span>
+              </div>
+            </div>
+          )}
 
           {/* Toggle buttons — only shown if rsvpOpen is true */}
           {next.rsvpOpen ? (
-            currentUser ? (
+            !currentUser ? (
+              <p className="text-xs text-slate-400">Sign in to RSVP</p>
+            ) : myRsvp?.status === "in" && isFull ? (
+              <p className="text-sm font-semibold text-green-600">✅ Your spot is confirmed!</p>
+            ) : isFull ? (
+              myRsvp?.status === "standby" ? (
+                <div className="space-y-2">
+                  <p className="text-sm text-amber-600 font-medium">
+                    ⏳ You're on standby{myStandbyPos ? ` (#${myStandbyPos})` : ""} — you'll be notified if a spot opens
+                  </p>
+                  <button
+                    onClick={() => removeRsvp(next.id, currentUser.id)}
+                    className="w-full py-2.5 rounded-lg font-semibold text-sm bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+                  >
+                    Leave Standby
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-base font-bold text-red-500">🚫 Sorry, we are full</p>
+                  <button
+                    onClick={() => handleRsvp("standby")}
+                    className="w-full py-2.5 rounded-lg font-semibold text-sm bg-slate-100 text-slate-600 hover:bg-indigo-50 hover:text-indigo-700 transition-colors"
+                  >
+                    📋 Join Standby
+                  </button>
+                </div>
+              )
+            ) : (
               <div className="flex gap-3">
                 <button
                   onClick={() => handleRsvp("in")}
@@ -110,14 +177,12 @@ export default function Hosting() {
                   ❌ I'm Out
                 </button>
               </div>
-            ) : (
-              <p className="text-xs text-slate-400">Sign in to RSVP</p>
             )
           ) : (
             <p className="text-xs text-gray-400 italic">RSVP not yet open for this game</p>
           )}
 
-          {/* In / Out columns */}
+          {/* In / Out / Standby columns */}
           <div className="grid grid-cols-2 gap-4 pt-1">
             <div>
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
@@ -170,6 +235,33 @@ export default function Hosting() {
               </ul>
             </div>
           </div>
+
+          {/* Standby list */}
+          {standbyList.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+                ⏳ Standby ({standbyList.length})
+              </p>
+              <ul className="space-y-1">
+                {standbyList.map((r, idx) => {
+                  const isMe = currentUser?.id === r.playerId;
+                  return (
+                    <li key={r.id} className="flex items-center gap-1.5 text-sm">
+                      <span className="text-slate-400 text-xs w-4">#{idx + 1}</span>
+                      <span className={isMe ? "font-semibold text-amber-600" : "text-slate-600"}>
+                        {r.playerName}
+                      </span>
+                      {isMe && (
+                        <span className="text-xs bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded font-medium">
+                          You
+                        </span>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
         </div>
       )}
 

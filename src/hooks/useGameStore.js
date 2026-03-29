@@ -9,6 +9,9 @@ const KEYS = {
   sessions: "scoresphere_sessions",
 };
 
+const SETTINGS_KEY = "scoresphere_settings";
+const DEFAULT_SETTINGS = { maxPlayers: 9 };
+
 function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
 }
@@ -22,7 +25,7 @@ function loadFromStorage() {
       localStorage.setItem(KEYS.hosting,   JSON.stringify(INITIAL_HOSTING));
       localStorage.setItem(KEYS.rsvps,     JSON.stringify([]));
       localStorage.setItem(KEYS.sessions,  JSON.stringify([]));
-      return { players: INITIAL_PLAYERS, games: INITIAL_GAMES, hosting: INITIAL_HOSTING, rsvps: [], sessions: [] };
+      return { players: INITIAL_PLAYERS, games: INITIAL_GAMES, hosting: INITIAL_HOSTING, rsvps: [], sessions: [], settings: DEFAULT_SETTINGS };
     }
     return {
       players:  JSON.parse(localStorage.getItem(KEYS.players))  || [],
@@ -30,9 +33,10 @@ function loadFromStorage() {
       hosting:  JSON.parse(localStorage.getItem(KEYS.hosting))  || [],
       rsvps:    JSON.parse(localStorage.getItem(KEYS.rsvps))    || [],
       sessions: JSON.parse(localStorage.getItem(KEYS.sessions)) || [],
+      settings: JSON.parse(localStorage.getItem(SETTINGS_KEY))  || DEFAULT_SETTINGS,
     };
   } catch {
-    return { players: INITIAL_PLAYERS, games: INITIAL_GAMES, hosting: INITIAL_HOSTING, rsvps: [], sessions: [] };
+    return { players: INITIAL_PLAYERS, games: INITIAL_GAMES, hosting: INITIAL_HOSTING, rsvps: [], sessions: [], settings: DEFAULT_SETTINGS };
   }
 }
 
@@ -57,7 +61,12 @@ export function useGameStore() {
     localStorage.setItem(KEYS.hosting,  JSON.stringify(next.hosting));
     localStorage.setItem(KEYS.rsvps,    JSON.stringify(next.rsvps));
     localStorage.setItem(KEYS.sessions, JSON.stringify(next.sessions));
+    localStorage.setItem(SETTINGS_KEY,  JSON.stringify(next.settings));
     setStore(next);
+  }
+
+  function updateSettings(patch) {
+    persist({ ...store, settings: { ...store.settings, ...patch } });
   }
 
   // ── Players ───────────────────────────────────────────────────────────────
@@ -149,31 +158,54 @@ export function useGameStore() {
   }
 
   // ── RSVPs ─────────────────────────────────────────────────────────────────
+  function promoteStandby(rsvps, hostingId, maxPlayers) {
+    const inCount = rsvps.filter((r) => r.hostingId === hostingId && r.status === "in").length;
+    if (inCount >= maxPlayers) return rsvps;
+    const standbys = rsvps
+      .filter((r) => r.hostingId === hostingId && r.status === "standby")
+      .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+    if (standbys.length === 0) return rsvps;
+    const first = standbys[0];
+    return rsvps.map((r) => r.id === first.id ? { ...r, status: "in" } : r);
+  }
+
   function setRsvp(hostingId, playerId, playerName, status) {
+    const maxPlayers = store.settings?.maxPlayers ?? DEFAULT_SETTINGS.maxPlayers;
     const existing = store.rsvps.findIndex(
       (r) => r.hostingId === hostingId && r.playerId === playerId
     );
     let updatedRsvps;
     if (existing !== -1) {
+      const prevStatus = store.rsvps[existing].status;
       updatedRsvps = store.rsvps.map((r, i) =>
         i === existing ? { ...r, playerName, status } : r
       );
+      // If the player was "in" and is now leaving that slot, auto-promote standby
+      if (prevStatus === "in" && status !== "in") {
+        updatedRsvps = promoteStandby(updatedRsvps, hostingId, maxPlayers);
+      }
     } else {
       updatedRsvps = [
         ...store.rsvps,
-        { id: generateId(), hostingId, playerId, playerName, status },
+        { id: generateId(), hostingId, playerId, playerName, status, timestamp: Date.now() },
       ];
     }
     persist({ ...store, rsvps: updatedRsvps });
   }
 
   function removeRsvp(hostingId, playerId) {
-    persist({
-      ...store,
-      rsvps: store.rsvps.filter(
-        (r) => !(r.hostingId === hostingId && r.playerId === playerId)
-      ),
-    });
+    const maxPlayers = store.settings?.maxPlayers ?? DEFAULT_SETTINGS.maxPlayers;
+    const removed = store.rsvps.find(
+      (r) => r.hostingId === hostingId && r.playerId === playerId
+    );
+    let updatedRsvps = store.rsvps.filter(
+      (r) => !(r.hostingId === hostingId && r.playerId === playerId)
+    );
+    // If the removed player was "in", auto-promote standby
+    if (removed?.status === "in") {
+      updatedRsvps = promoteStandby(updatedRsvps, hostingId, maxPlayers);
+    }
+    persist({ ...store, rsvps: updatedRsvps });
   }
 
   // ── Sessions ──────────────────────────────────────────────────────────────
@@ -283,6 +315,7 @@ export function useGameStore() {
     hosting:  hostingWithStatus,
     rsvps:    store.rsvps,
     sessions: store.sessions,
+    settings: store.settings,
     // mutations
     addPlayer,
     removePlayer,
@@ -306,5 +339,6 @@ export function useGameStore() {
     approveRebuy,
     denyRebuy,
     endSession,
+    updateSettings,
   };
 }

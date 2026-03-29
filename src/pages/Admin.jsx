@@ -255,7 +255,11 @@ function ManagePlayers({ players, addPlayer, removePlayer, updatePlayerPhoto, up
 }
 
 // ── Tab: Hosting ──────────────────────────────────────────────────────────────
-function ManageHosting({ players, hosting, addHostEntry, updateHostEntry, deleteHostEntry }) {
+function ManageHosting({
+  players, hosting, addHostEntry, updateHostEntry, deleteHostEntry,
+  sessions, toggleRsvpOpen, createSession, startSession, endSession,
+  approveRebuy, denyRebuy,
+}) {
   const [date, setDate] = useState("");
   const [pname, setPname] = useState("");
   const [editId, setEditId] = useState(null);
@@ -263,6 +267,8 @@ function ManageHosting({ players, hosting, addHostEntry, updateHostEntry, delete
   const [editPname, setEditPname] = useState("");
 
   const sorted = [...hosting].sort((a, b) => new Date(b.date) - new Date(a.date));
+  const next = hosting.find((h) => h.status === "next");
+  const nextSession = next ? sessions.find((s) => s.hostingId === next.id) : null;
 
   return (
     <div className="space-y-5">
@@ -282,38 +288,154 @@ function ManageHosting({ players, hosting, addHostEntry, updateHostEntry, delete
       </div>
 
       <div className="divide-y divide-slate-100 border border-slate-200 rounded-lg overflow-hidden">
-        {sorted.map((h) => (
-          <div key={h.id} className="flex items-center gap-3 px-4 py-3 bg-white text-sm">
-            {editId === h.id ? (
-              <>
-                <input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)}
-                  className="border border-slate-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
-                <select value={editPname} onChange={(e) => setEditPname(e.target.value)}
-                  className="border border-slate-200 rounded px-2 py-1 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-indigo-400">
-                  {players.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}
-                </select>
-                <Btn onClick={() => { updateHostEntry(h.id, { date: `${editDate}T12:00:00.000Z`, playerName: editPname }); setEditId(null); }}>Save</Btn>
-                <Btn variant="secondary" onClick={() => setEditId(null)}>Cancel</Btn>
-              </>
-            ) : (
-              <>
-                <span className="text-slate-500 w-32">{formatDateLong(h.date)}</span>
-                <span className="flex-1 font-medium text-slate-700">{h.playerName}</span>
-                <span className={`text-xs px-2 py-0.5 rounded-full ${
-                  h.status === "next"     ? "bg-indigo-100 text-indigo-700" :
-                  h.status === "upcoming" ? "bg-slate-100 text-slate-600" :
-                                            "bg-gray-100 text-gray-400"
-                }`}>{h.status}</span>
-                <Btn variant="secondary" onClick={() => { setEditId(h.id); setEditDate(new Date(h.date).toISOString().slice(0, 10)); setEditPname(h.playerName); }}>Edit</Btn>
-                <Btn variant="danger" onClick={() => { if (confirm("Delete this entry?")) deleteHostEntry(h.id); }}>Del</Btn>
-              </>
-            )}
-          </div>
-        ))}
+        {sorted.map((h) => {
+          const isFutureEntry = h.status === "next" || h.status === "upcoming";
+          const isNext = h.status === "next";
+          const entrySession = isNext ? nextSession : null;
+          return (
+            <div key={h.id} className="px-4 py-3 bg-white text-sm space-y-2">
+              <div className="flex items-center gap-3 flex-wrap">
+                {editId === h.id ? (
+                  <>
+                    <input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)}
+                      className="border border-slate-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                    <select value={editPname} onChange={(e) => setEditPname(e.target.value)}
+                      className="border border-slate-200 rounded px-2 py-1 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                      {players.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}
+                    </select>
+                    <Btn onClick={() => { updateHostEntry(h.id, { date: `${editDate}T12:00:00.000Z`, playerName: editPname }); setEditId(null); }}>Save</Btn>
+                    <Btn variant="secondary" onClick={() => setEditId(null)}>Cancel</Btn>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-slate-500 w-32">{formatDateLong(h.date)}</span>
+                    <span className="flex-1 font-medium text-slate-700">{h.playerName}</span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${
+                      h.status === "next"     ? "bg-indigo-100 text-indigo-700" :
+                      h.status === "upcoming" ? "bg-slate-100 text-slate-600" :
+                                                "bg-gray-100 text-gray-400"
+                    }`}>{h.status}</span>
+
+                    {/* RSVP toggle — future entries only */}
+                    {isFutureEntry && (
+                      <button
+                        onClick={() => toggleRsvpOpen(h.id)}
+                        className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
+                          h.rsvpOpen
+                            ? "bg-green-100 hover:bg-green-200 text-green-700"
+                            : "bg-slate-100 hover:bg-slate-200 text-slate-600"
+                        }`}
+                      >
+                        {h.rsvpOpen ? "Close RSVP" : "Open RSVP"}
+                      </button>
+                    )}
+
+                    {/* Session controls — next entry only */}
+                    {isNext && !entrySession && (
+                      <Btn onClick={() => createSession(h.id)}>Create Session</Btn>
+                    )}
+                    {isNext && entrySession?.status === "waiting" && (
+                      <Btn onClick={() => startSession(entrySession.id)}>Start Game</Btn>
+                    )}
+                    {isNext && entrySession?.status === "active" && (
+                      <Btn variant="danger" onClick={() => {
+                        if (confirm("End the game session?")) endSession(entrySession.id);
+                      }}>End Game</Btn>
+                    )}
+
+                    <Btn variant="secondary" onClick={() => { setEditId(h.id); setEditDate(new Date(h.date).toISOString().slice(0, 10)); setEditPname(h.playerName); }}>Edit</Btn>
+                    <Btn variant="danger" onClick={() => { if (confirm("Delete this entry?")) deleteHostEntry(h.id); }}>Del</Btn>
+                  </>
+                )}
+              </div>
+            </div>
+          );
+        })}
         {sorted.length === 0 && (
           <div className="px-4 py-8 text-center text-slate-400 text-sm">No hosting entries</div>
         )}
       </div>
+
+      {/* AdminSession panel */}
+      {nextSession && (
+        <div className="border border-slate-200 rounded-xl overflow-hidden">
+          <div className="px-5 py-3 bg-slate-50 border-b border-slate-200">
+            <h3 className="font-semibold text-slate-700 text-sm">
+              {nextSession.status === "ended" ? "Session Summary" : "🃏 Active Session"}
+            </h3>
+          </div>
+          <div className="p-5 space-y-4">
+            {/* Player check-in list */}
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+                Players ({nextSession.players.length})
+              </p>
+              <div className="border border-slate-200 rounded-lg overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-slate-50 text-xs text-slate-500 uppercase tracking-wide">
+                      <th className="px-4 py-2 text-left">Name</th>
+                      <th className="px-4 py-2 text-right">Buys (V)</th>
+                      <th className="px-4 py-2 text-right">NIS</th>
+                      <th className="px-4 py-2 text-right">Chips</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {nextSession.players.map((p) => (
+                      <tr key={p.playerId} className="border-t border-slate-100">
+                        <td className="px-4 py-2 font-medium text-slate-700">{p.playerName}</td>
+                        <td className="px-4 py-2 text-right text-slate-600">{p.buys}</td>
+                        <td className="px-4 py-2 text-right text-slate-600">{p.buys * 50}</td>
+                        <td className="px-4 py-2 text-right text-slate-600">{p.buys * 100}</td>
+                      </tr>
+                    ))}
+                    {nextSession.players.length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="px-4 py-4 text-center text-slate-400">No players yet</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Pending rebuy requests */}
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+                Pending Rebuy Requests
+              </p>
+              {nextSession.rebuyRequests.filter((r) => r.status === "pending").length === 0 ? (
+                <p className="text-xs text-slate-400 italic">No pending requests</p>
+              ) : (
+                <div className="space-y-2">
+                  {nextSession.rebuyRequests
+                    .filter((r) => r.status === "pending")
+                    .map((r) => (
+                      <div key={r.id} className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5">
+                        <span className="flex-1 font-medium text-slate-700 text-sm">{r.playerName}</span>
+                        <span className="text-xs text-slate-400">
+                          {new Date(r.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                        <Btn
+                          onClick={() => approveRebuy(nextSession.id, r.id)}
+                          className="bg-green-100 hover:bg-green-200 text-green-700"
+                        >
+                          ✓ Approve
+                        </Btn>
+                        <Btn
+                          variant="danger"
+                          onClick={() => denyRebuy(nextSession.id, r.id)}
+                        >
+                          ✗ Deny
+                        </Btn>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -371,6 +493,8 @@ export default function Admin() {
     addPlayer, removePlayer, updatePlayerPhoto, updatePlayerName,
     addGame, updateGame, deleteGame,
     addHostEntry, updateHostEntry, deleteHostEntry,
+    sessions, toggleRsvpOpen, createSession, startSession, endSession,
+    approveRebuy, denyRebuy,
   } = useStore();
 
   const { addCredential, removeCredential } = useAuth();
@@ -415,7 +539,22 @@ export default function Admin() {
             removeCredential={removeCredential}
           />
         )}
-        {tab === 2 && <ManageHosting players={players} hosting={hosting} addHostEntry={addHostEntry} updateHostEntry={updateHostEntry} deleteHostEntry={deleteHostEntry} />}
+        {tab === 2 && (
+          <ManageHosting
+            players={players}
+            hosting={hosting}
+            addHostEntry={addHostEntry}
+            updateHostEntry={updateHostEntry}
+            deleteHostEntry={deleteHostEntry}
+            sessions={sessions}
+            toggleRsvpOpen={toggleRsvpOpen}
+            createSession={createSession}
+            startSession={startSession}
+            endSession={endSession}
+            approveRebuy={approveRebuy}
+            denyRebuy={denyRebuy}
+          />
+        )}
         {tab === 3 && <ManagePasswords credentials={credentials} resetPin={resetPin} toggleAdmin={toggleAdmin} />}
       </div>
     </div>

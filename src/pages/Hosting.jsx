@@ -3,7 +3,10 @@ import { useAuth } from "../context/AuthContext";
 import { formatDateLong } from "../utils/statsCalculations";
 
 export default function Hosting() {
-  const { hosting, rsvps, setRsvp, removeRsvp } = useStore();
+  const {
+    hosting, rsvps, setRsvp, removeRsvp,
+    sessions, checkInToSession, requestRebuy,
+  } = useStore();
   const { currentUser } = useAuth();
 
   const next = hosting.find((h) => h.status === "next");
@@ -27,6 +30,32 @@ export default function Hosting() {
     } else {
       setRsvp(next.id, currentUser.id, currentUser.name, status);
     }
+  }
+
+  // Session for the next game
+  const nextSession = next
+    ? sessions.find((s) => s.hostingId === next.id)
+    : null;
+  const sessionActive = nextSession?.status === "active";
+
+  const mySessionEntry = currentUser && nextSession
+    ? nextSession.players.find((p) => p.playerId === currentUser.id)
+    : null;
+
+  const myPendingRebuy = currentUser && nextSession
+    ? nextSession.rebuyRequests.find(
+        (r) => r.playerId === currentUser.id && r.status === "pending"
+      )
+    : null;
+
+  function handleCheckIn() {
+    if (!currentUser || !nextSession) return;
+    checkInToSession(nextSession.id, currentUser.id, currentUser.name);
+  }
+
+  function handleRequestRebuy() {
+    if (!currentUser || !nextSession) return;
+    requestRebuy(nextSession.id, currentUser.id, currentUser.name);
   }
 
   return (
@@ -56,32 +85,36 @@ export default function Hosting() {
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-4">
           <h2 className="font-semibold text-slate-700 text-base">Next Game RSVP</h2>
 
-          {/* Toggle buttons */}
-          {currentUser ? (
-            <div className="flex gap-3">
-              <button
-                onClick={() => handleRsvp("in")}
-                className={`flex-1 py-2.5 rounded-lg font-semibold text-sm transition-colors ${
-                  myRsvp?.status === "in"
-                    ? "bg-indigo-600 text-white shadow-sm"
-                    : "bg-slate-100 text-slate-600 hover:bg-indigo-50 hover:text-indigo-700"
-                }`}
-              >
-                ✅ I'm In
-              </button>
-              <button
-                onClick={() => handleRsvp("out")}
-                className={`flex-1 py-2.5 rounded-lg font-semibold text-sm transition-colors ${
-                  myRsvp?.status === "out"
-                    ? "bg-red-500 text-white shadow-sm"
-                    : "bg-slate-100 text-slate-600 hover:bg-red-50 hover:text-red-600"
-                }`}
-              >
-                ❌ I'm Out
-              </button>
-            </div>
+          {/* Toggle buttons — only shown if rsvpOpen is true */}
+          {next.rsvpOpen ? (
+            currentUser ? (
+              <div className="flex gap-3">
+                <button
+                  onClick={() => handleRsvp("in")}
+                  className={`flex-1 py-2.5 rounded-lg font-semibold text-sm transition-colors ${
+                    myRsvp?.status === "in"
+                      ? "bg-indigo-600 text-white shadow-sm"
+                      : "bg-slate-100 text-slate-600 hover:bg-indigo-50 hover:text-indigo-700"
+                  }`}
+                >
+                  ✅ I'm In
+                </button>
+                <button
+                  onClick={() => handleRsvp("out")}
+                  className={`flex-1 py-2.5 rounded-lg font-semibold text-sm transition-colors ${
+                    myRsvp?.status === "out"
+                      ? "bg-red-500 text-white shadow-sm"
+                      : "bg-slate-100 text-slate-600 hover:bg-red-50 hover:text-red-600"
+                  }`}
+                >
+                  ❌ I'm Out
+                </button>
+              </div>
+            ) : (
+              <p className="text-xs text-slate-400">Sign in to RSVP</p>
+            )
           ) : (
-            <p className="text-xs text-slate-400">Sign in to RSVP</p>
+            <p className="text-xs text-gray-400 italic">RSVP not yet open for this game</p>
           )}
 
           {/* In / Out columns */}
@@ -135,6 +168,103 @@ export default function Hosting() {
                   <li className="text-xs text-slate-400 italic">No one yet</li>
                 )}
               </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Live Game Section */}
+      {nextSession && sessionActive && (
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-5">
+          <h2 className="font-semibold text-slate-700 text-base">🃏 Live Game</h2>
+
+          {/* Check-in / rebuy area */}
+          {!currentUser ? (
+            <p className="text-sm text-slate-400">Sign in to check in</p>
+          ) : !mySessionEntry ? (
+            /* Not yet checked in */
+            <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-5 text-center space-y-3">
+              <p className="text-xl font-bold text-indigo-700">🃏 Game is Live!</p>
+              <button
+                onClick={handleCheckIn}
+                className="w-full py-4 text-lg font-bold rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white transition-colors"
+              >
+                I'm In!
+              </button>
+              <p className="text-xs text-indigo-500">Joining costs 1 buy-in · 50 NIS · 100 chips</p>
+            </div>
+          ) : (
+            /* Already checked in */
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-5 space-y-3">
+              <div className="text-center">
+                <p className="text-4xl font-bold text-slate-800">{mySessionEntry.buys} V</p>
+                <p className="text-sm text-slate-500 mt-1">
+                  = {mySessionEntry.buys * 50} NIS · {mySessionEntry.buys * 100} chips
+                </p>
+              </div>
+              <button
+                onClick={handleRequestRebuy}
+                disabled={!!myPendingRebuy}
+                className={`w-full py-2.5 rounded-lg text-sm font-semibold transition-colors ${
+                  myPendingRebuy
+                    ? "bg-slate-200 text-slate-400 cursor-not-allowed"
+                    : "bg-indigo-600 hover:bg-indigo-700 text-white"
+                }`}
+              >
+                Request Rebuy (+50 NIS / +100 chips)
+              </button>
+              {myPendingRebuy && (
+                <p className="text-xs text-amber-600 text-center">⏳ Rebuy request pending admin approval</p>
+              )}
+            </div>
+          )}
+
+          {/* Player list */}
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+              Players ({nextSession.players.length})
+            </p>
+            <div className="border border-slate-200 rounded-lg overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-slate-50 text-xs text-slate-500 uppercase tracking-wide">
+                    <th className="px-4 py-2.5 text-left">Name</th>
+                    <th className="px-4 py-2.5 text-right">Buys (V)</th>
+                    <th className="px-4 py-2.5 text-right">NIS</th>
+                    <th className="px-4 py-2.5 text-right">Chips</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {nextSession.players.map((p) => {
+                    const isMe = currentUser?.id === p.playerId;
+                    return (
+                      <tr
+                        key={p.playerId}
+                        className={`border-t border-slate-100 ${isMe ? "bg-amber-50" : ""}`}
+                      >
+                        <td className="px-4 py-2.5 font-medium text-slate-800">
+                          <span className={isMe ? "text-amber-700" : ""}>{p.playerName}</span>
+                          {isMe && (
+                            <span className="ml-2 text-xs bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded font-medium">
+                              You
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2.5 text-right text-slate-700">{p.buys}</td>
+                        <td className="px-4 py-2.5 text-right text-slate-700">{p.buys * 50}</td>
+                        <td className="px-4 py-2.5 text-right text-slate-700">{p.buys * 100}</td>
+                      </tr>
+                    );
+                  })}
+                  {nextSession.players.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="px-4 py-6 text-center text-slate-400">
+                        No players checked in yet
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>

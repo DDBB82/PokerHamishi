@@ -45,8 +45,20 @@ function getNextThursday21() {
 }
 
 export default function Dashboard() {
-  const { players, games, hosting, rsvps, setRsvp, removeRsvp, settings } = useStore();
+  const { players, games, hosting, rsvps, setRsvp, removeRsvp, settings, sessions, checkInToSession, requestRebuy } = useStore();
   const { currentUser } = useAuth();
+
+  // Live game session
+  const activeSession = sessions.find((s) => s.status === "active") || null;
+  const liveHosting = activeSession ? hosting.find((h) => h.id === activeSession.hostingId) : null;
+  const myLiveEntry = activeSession && currentUser
+    ? activeSession.players.find((p) => p.playerId === currentUser.id)
+    : null;
+  const myPendingRebuy = activeSession && currentUser
+    ? activeSession.rebuyRequests.find((r) => r.playerId === currentUser.id && r.status === "pending")
+    : null;
+
+  const [rebuyQty, setRebuyQty] = useState(1);
 
   const stats = useMemo(() => computePlayerStats(players, games), [players, games]);
   const cumulative = useMemo(() => computeCumulativeScores(players, games), [players, games]);
@@ -113,14 +125,97 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* ── LIVE GAME BANNER (takes over when a session is active) ── */}
+      {activeSession && (
+        <div className="bg-gradient-to-br from-green-600 to-green-700 rounded-xl p-5 text-white shadow-lg space-y-4">
+          {/* Header */}
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <p className="text-green-200 text-xs font-semibold uppercase tracking-wide">🃏 Game is Live!</p>
+              <h2 className="text-2xl font-bold">
+                {liveHosting
+                  ? new Date(liveHosting.date).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })
+                  : "Tonight's Game"}
+              </h2>
+              {liveHosting && <p className="text-green-200 text-sm">Hosted by {liveHosting.playerName}</p>}
+            </div>
+            <span className="bg-green-500/40 text-white text-xs font-bold px-3 py-1.5 rounded-full animate-pulse">
+              LIVE
+            </span>
+          </div>
+
+          {/* My status */}
+          {!currentUser ? (
+            <p className="text-green-200 text-sm">Sign in to join the game</p>
+          ) : !myLiveEntry ? (
+            <button
+              onClick={() => checkInToSession(activeSession.id, currentUser.id, currentUser.name)}
+              className="w-full py-4 rounded-xl text-lg font-bold bg-white text-green-700 hover:bg-green-50 transition-colors shadow-sm"
+            >
+              🃏 I'm In! (+1 V · 50 NIS · 100 chips)
+            </button>
+          ) : (
+            <div className="space-y-3">
+              {/* V count */}
+              <div className="bg-green-500/30 rounded-xl p-4 text-center">
+                <p className="text-green-200 text-xs font-semibold uppercase tracking-wide mb-1">Your Buy-ins</p>
+                <p className="text-5xl font-bold text-white">{myLiveEntry.buys} <span className="text-3xl font-semibold text-green-200">V</span></p>
+                <p className="text-green-200 text-sm mt-1">{myLiveEntry.buys * 50} NIS · {myLiveEntry.buys * 100} chips</p>
+              </div>
+              {/* Rebuy request */}
+              {myPendingRebuy ? (
+                <p className="text-center text-green-200 text-sm font-medium">⏳ Rebuy request ({myPendingRebuy.quantity} V) pending admin approval</p>
+              ) : (
+                <div className="flex gap-2">
+                  <div className="flex items-center gap-2 bg-green-500/30 rounded-lg px-3 py-2">
+                    <span className="text-green-200 text-sm">Qty:</span>
+                    <input
+                      type="number" min={1} max={10} value={rebuyQty}
+                      onChange={(e) => setRebuyQty(Math.max(1, Math.min(10, Number(e.target.value))))}
+                      className="w-12 bg-transparent text-white font-bold text-center focus:outline-none"
+                    />
+                  </div>
+                  <button
+                    onClick={() => { requestRebuy(activeSession.id, currentUser.id, currentUser.name, rebuyQty); setRebuyQty(1); }}
+                    className="flex-1 py-2.5 rounded-lg font-semibold text-sm bg-green-500/40 hover:bg-green-500/60 text-white transition-colors"
+                  >
+                    Request Rebuy (+{rebuyQty} V · {rebuyQty * 50} NIS)
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Players in game */}
+          {activeSession.players.length > 0 && (
+            <div>
+              <p className="text-green-200 text-xs font-semibold uppercase tracking-wide mb-2">Players In ({activeSession.players.length})</p>
+              <div className="flex flex-wrap gap-2">
+                {activeSession.players.map((p) => {
+                  const isMe = p.playerId === currentUser?.id;
+                  return (
+                    <div key={p.playerId} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm font-medium ${isMe ? "bg-amber-400/30 text-amber-100" : "bg-green-500/30 text-white"}`}>
+                      <span>{p.playerName}{isMe ? " (You)" : ""}</span>
+                      <span className="bg-green-400/40 text-green-100 text-xs font-bold px-1.5 py-0.5 rounded">{p.buys}V</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Header — hidden when live game is active */}
+      {!activeSession && (
       <div>
         <h1 className="text-2xl font-bold text-slate-800">Your Poker Stats</h1>
         <p className="text-slate-500 text-sm">View your poker journey</p>
       </div>
+      )}
 
-      {/* Info cards: countdown + host */}
-      <div className={`grid gap-4 ${currentUser && daysUntilHost !== null ? "grid-cols-2" : "grid-cols-1"}`}>
+      {/* Info cards: countdown + host — hidden during live game */}
+      {!activeSession && <div className={`grid gap-4 ${currentUser && daysUntilHost !== null ? "grid-cols-2" : "grid-cols-1"}`}>
         {/* Countdown */}
         {timeLeft && (
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 text-center">
@@ -144,7 +239,7 @@ export default function Dashboard() {
             <p className="text-sm text-slate-400">days</p>
           </div>
         )}
-      </div>
+      </div>}
 
       {/* Next Game Registration card */}
       {(() => {

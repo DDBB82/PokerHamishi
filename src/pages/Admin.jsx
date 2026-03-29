@@ -384,7 +384,7 @@ function ManageHosting({
                     {nextSession.players.map((p) => (
                       <tr key={p.playerId} className="border-t border-slate-100">
                         <td className="px-4 py-2 font-medium text-slate-700">{p.playerName}</td>
-                        <td className="px-4 py-2 text-right text-slate-600">{p.buys}</td>
+                        <td className="px-4 py-2 text-right font-bold text-green-600">{p.buys} V</td>
                         <td className="px-4 py-2 text-right text-slate-600">{p.buys * 50}</td>
                         <td className="px-4 py-2 text-right text-slate-600">{p.buys * 100}</td>
                       </tr>
@@ -413,6 +413,7 @@ function ManageHosting({
                     .map((r) => (
                       <div key={r.id} className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5">
                         <span className="flex-1 font-medium text-slate-700 text-sm">{r.playerName}</span>
+                        <span className="font-bold text-green-600 text-sm">+{r.quantity || 1} V</span>
                         <span className="text-xs text-slate-400">
                           {new Date(r.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                         </span>

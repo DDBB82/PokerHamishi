@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useStore } from "../context/GameStoreContext";
 import { useAuth } from "../context/AuthContext";
 import { formatDateLong } from "../utils/statsCalculations";
@@ -70,9 +71,12 @@ export default function Hosting() {
     checkInToSession(nextSession.id, currentUser.id, currentUser.name);
   }
 
+  const [rebuyQty, setRebuyQty] = useState(1);
+
   function handleRequestRebuy() {
     if (!currentUser || !nextSession) return;
-    requestRebuy(nextSession.id, currentUser.id, currentUser.name);
+    requestRebuy(nextSession.id, currentUser.id, currentUser.name, rebuyQty);
+    setRebuyQty(1);
   }
 
   return (
@@ -267,46 +271,50 @@ export default function Hosting() {
 
       {/* Live Game Section */}
       {nextSession && sessionActive && (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-5">
-          <h2 className="font-semibold text-slate-700 text-base">🃏 Live Game</h2>
+        <div className="bg-white rounded-xl shadow-sm border border-green-200 p-5 space-y-5">
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold text-slate-700 text-base">🃏 Live Game — {formatDateLong(next.date)}</h2>
+            <span className="text-xs bg-green-100 text-green-700 font-bold px-2.5 py-1 rounded-full animate-pulse">LIVE</span>
+          </div>
 
           {/* Check-in / rebuy area */}
           {!currentUser ? (
             <p className="text-sm text-slate-400">Sign in to check in</p>
           ) : !mySessionEntry ? (
-            /* Not yet checked in */
-            <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-5 text-center space-y-3">
-              <p className="text-xl font-bold text-indigo-700">🃏 Game is Live!</p>
+            <div className="rounded-xl border border-green-200 bg-green-50 p-5 text-center space-y-3">
               <button
                 onClick={handleCheckIn}
-                className="w-full py-4 text-lg font-bold rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white transition-colors"
+                className="w-full py-4 text-lg font-bold rounded-lg bg-green-600 hover:bg-green-700 text-white transition-colors"
               >
-                I'm In!
+                🃏 I'm In!
               </button>
-              <p className="text-xs text-indigo-500">Joining costs 1 buy-in · 50 NIS · 100 chips</p>
+              <p className="text-xs text-green-600">Joining gives you 1 <span className="font-bold text-green-700">V</span> · 50 NIS · 100 chips</p>
             </div>
           ) : (
-            /* Already checked in */
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-5 space-y-3">
+            <div className="rounded-xl border border-green-200 bg-green-50 p-5 space-y-3">
               <div className="text-center">
-                <p className="text-4xl font-bold text-slate-800">{mySessionEntry.buys} V</p>
-                <p className="text-sm text-slate-500 mt-1">
-                  = {mySessionEntry.buys * 50} NIS · {mySessionEntry.buys * 100} chips
-                </p>
+                <p className="text-5xl font-bold text-green-600">{mySessionEntry.buys} <span className="text-3xl font-semibold text-green-400">V</span></p>
+                <p className="text-sm text-green-600 mt-1">{mySessionEntry.buys * 50} NIS · {mySessionEntry.buys * 100} chips</p>
               </div>
-              <button
-                onClick={handleRequestRebuy}
-                disabled={!!myPendingRebuy}
-                className={`w-full py-2.5 rounded-lg text-sm font-semibold transition-colors ${
-                  myPendingRebuy
-                    ? "bg-slate-200 text-slate-400 cursor-not-allowed"
-                    : "bg-indigo-600 hover:bg-indigo-700 text-white"
-                }`}
-              >
-                Request Rebuy (+50 NIS / +100 chips)
-              </button>
-              {myPendingRebuy && (
-                <p className="text-xs text-amber-600 text-center">⏳ Rebuy request pending admin approval</p>
+              {myPendingRebuy ? (
+                <p className="text-xs text-amber-600 text-center font-medium">⏳ Rebuy request ({myPendingRebuy.quantity} <span className="font-bold">V</span>) pending admin approval</p>
+              ) : (
+                <div className="flex gap-2">
+                  <div className="flex items-center gap-2 bg-white border border-green-200 rounded-lg px-3 py-2">
+                    <span className="text-slate-500 text-sm">Qty:</span>
+                    <input
+                      type="number" min={1} max={10} value={rebuyQty}
+                      onChange={(e) => setRebuyQty(Math.max(1, Math.min(10, Number(e.target.value))))}
+                      className="w-10 text-center font-bold text-green-700 focus:outline-none"
+                    />
+                  </div>
+                  <button
+                    onClick={handleRequestRebuy}
+                    className="flex-1 py-2.5 rounded-lg text-sm font-semibold bg-green-600 hover:bg-green-700 text-white transition-colors"
+                  >
+                    Request Rebuy (+{rebuyQty} <span className="font-bold">V</span> · {rebuyQty * 50} NIS)
+                  </button>
+                </div>
               )}
             </div>
           )}
@@ -321,7 +329,7 @@ export default function Hosting() {
                 <thead>
                   <tr className="bg-slate-50 text-xs text-slate-500 uppercase tracking-wide">
                     <th className="px-4 py-2.5 text-left">Name</th>
-                    <th className="px-4 py-2.5 text-right">Buys (V)</th>
+                    <th className="px-4 py-2.5 text-right">V (buy-ins)</th>
                     <th className="px-4 py-2.5 text-right">NIS</th>
                     <th className="px-4 py-2.5 text-right">Chips</th>
                   </tr>
@@ -330,30 +338,19 @@ export default function Hosting() {
                   {nextSession.players.map((p) => {
                     const isMe = currentUser?.id === p.playerId;
                     return (
-                      <tr
-                        key={p.playerId}
-                        className={`border-t border-slate-100 ${isMe ? "bg-amber-50" : ""}`}
-                      >
+                      <tr key={p.playerId} className={`border-t border-slate-100 ${isMe ? "bg-amber-50" : ""}`}>
                         <td className="px-4 py-2.5 font-medium text-slate-800">
                           <span className={isMe ? "text-amber-700" : ""}>{p.playerName}</span>
-                          {isMe && (
-                            <span className="ml-2 text-xs bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded font-medium">
-                              You
-                            </span>
-                          )}
+                          {isMe && <span className="ml-2 text-xs bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded font-medium">You</span>}
                         </td>
-                        <td className="px-4 py-2.5 text-right text-slate-700">{p.buys}</td>
+                        <td className="px-4 py-2.5 text-right font-bold text-green-600">{p.buys} V</td>
                         <td className="px-4 py-2.5 text-right text-slate-700">{p.buys * 50}</td>
                         <td className="px-4 py-2.5 text-right text-slate-700">{p.buys * 100}</td>
                       </tr>
                     );
                   })}
                   {nextSession.players.length === 0 && (
-                    <tr>
-                      <td colSpan={4} className="px-4 py-6 text-center text-slate-400">
-                        No players checked in yet
-                      </td>
-                    </tr>
+                    <tr><td colSpan={4} className="px-4 py-6 text-center text-slate-400">No players checked in yet</td></tr>
                   )}
                 </tbody>
               </table>

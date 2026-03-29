@@ -240,11 +240,12 @@ export function useGameStore() {
     });
   }
 
-  function requestRebuy(sessionId, playerId, playerName) {
+  function requestRebuy(sessionId, playerId, playerName, quantity = 1) {
     const request = {
       id: generateId(),
       playerId,
       playerName,
+      quantity: Math.max(1, Number(quantity)),
       timestamp: Date.now(),
       status: "pending",
     };
@@ -271,7 +272,7 @@ export function useGameStore() {
             r.id === requestId ? { ...r, status: "approved" } : r
           ),
           players: s.players.map((p) =>
-            p.playerId === req.playerId ? { ...p, buys: p.buys + 1 } : p
+            p.playerId === req.playerId ? { ...p, buys: p.buys + (req.quantity || 1) } : p
           ),
         };
       }),
